@@ -1,16 +1,16 @@
 import time
 import copy
+import cv2
+import argparse
+import gym
+
 import numpy as np
 import torch.multiprocessing as mp
-import cv2
-import matplotlib.pyplot as plt
-import matplotlib as mpl
+import multiprocessing as mp
+
 from multiprocessing import Process, Value, Manager
-import gym
 from envs.visual_ur5_reacher.reacher_env import ReacherEnv
 from senseact.utils import tf_set_seeds, NormalizedEnv
-import argparse
-import multiprocessing as mp
 
 
 def make_env(setup='Visual_UR5',
@@ -101,22 +101,6 @@ class UR5Wrapper():
 
         self.action_space = self.env.action_space
 
-        self.radius=7
-        self.width=160
-        self.height=90
-        mpl.rcParams['toolbar'] = 'None'
-        plt.ion()
-        self.fig = plt.figure()
-        plt.subplots_adjust(left=0.0, right=1.0, top=1.0, bottom=0.0)
-        self.fig.canvas.toolbar_visible = False
-        self.ax = plt.axes(xlim=(0, self.width), ylim=(0, self.height))
-        self.target = plt.Circle((0, 0), self.radius, color='red')
-        self.ax.add_patch(self.target)
-        plt.axis('off')
-
-        figManager = plt.get_current_fig_manager()
-        figManager.full_screen_toggle()
-
     def step(self, action):
         obs_dict, reward, done, _ = self.env.step(action)
         if self.ignore_joint:
@@ -125,14 +109,6 @@ class UR5Wrapper():
             return obs_dict['image'], obs_dict['joint'], reward, done, _
 
     def reset(self):
-        x, y = np.random.random(2)
-        self.target.set_center((self.radius + x * (self.width - 2 * self.radius),
-                self.radius + y * (self.height - 2 * self.radius)))
-
-        self.fig.canvas.draw()
-        self.fig.canvas.flush_events()
-        time.sleep(0.032)
-
         obs_dict = self.env.reset()
         if self.ignore_joint:
             return obs_dict['image'], None
