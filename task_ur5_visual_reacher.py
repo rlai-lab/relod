@@ -173,8 +173,11 @@ def main():
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     onboard_wrapper.send_init_ob((obs, state))
     start_time = time.time()
+
+    # First inference took a while (~1 min), do it before the agent-env interaction loop
+    performer.sample_action((obs, state), args.init_steps+1)
     for step in range(args.env_steps + args.init_steps):
-        action = onboard_wrapper.sample_action((obs, state))
+        action = onboard_wrapper.sample_action((obs, state), step)
 
         # step in the environment
         next_obs, next_state, reward, done, _ = env.step(action)
