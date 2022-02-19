@@ -120,28 +120,26 @@ class UR5Wrapper():
 
 if __name__ == '__main__':
     n_episodes = 10
-    env = UR5Wrapper(setup='Visual_UR5',
+    env = UR5Wrapper(setup='Visual-UR5',
                      ip='129.128.159.210',
                      seed=9,
                      camera_id=0,
                      image_width=160,
                      image_height=120,
-                     target_type='stationary',
+                     target_type='reaching',
                      image_history=3,
                      joint_history=1,
                      episode_length=4.0,
                      dt=0.04,
                      ignore_joint=False)
 
-    i_episode = 1
-    for i in range(n_episodes):
+    for i_episode in range(n_episodes):
         img, prop = env.reset()
         done = False
+        tic = time.time()
         while not done:
-            action = np.random.uniform(low=-1, high=1, size=6)
+            action = np.random.uniform(low=-1, high=1, size=5)
             next_img, next_prop, reward, done, _ = env.step(action)
             img = next_img
             prop = next_prop
-            if done:
-                break
-    
+        print("Episode {} took {}s".format(i_episode, time.time()-tic)) 
