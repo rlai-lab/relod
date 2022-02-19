@@ -63,6 +63,7 @@ def main():
 
     # Monitor
     mt = MonitorTarget()
+    mt.reset_plot()
 
     server_args_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_args_sock.bind(('', server_args.args_port))

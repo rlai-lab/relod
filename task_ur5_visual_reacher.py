@@ -75,10 +75,12 @@ def parse_args():
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     parser.add_argument('--bootstrap_terminal', default=1, type=int)
     # agent
-    parser.add_argument('--remote_ip', default='localhost', type=str)
+    # parser.add_argument('--remote_ip', default='localhost', type=str)
+    parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
+    parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
@@ -145,7 +147,12 @@ def main():
     episode_length_step = int(args.episode_length_time / args.dt)
 
     performer = SACRADPerformer(args)
-    learner = SACRADLearner(performer=performer, args=args)
+    if mode == MODE.ONBOARD_REMOTE and MODE.REMOTE_ONLY:
+        learner = None
+    elif mode == MODE.LOCAL_ONLY:
+        learner = SACRADLearner(performer=performer, args=args)
+    else:
+        raise NotImplementedError
 
     if mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
         args_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
