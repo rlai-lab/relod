@@ -5,10 +5,6 @@ import socket
 import time
 import os
 
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import numpy as np
-
 from logger import Logger
 from algo.comm import MODE, send_message
 from algo.onboard_wrapper import OnboardWrapper
@@ -34,35 +30,6 @@ config = {
         [1024, -1] # output layer
     ],
 }
-
-class MonitorTarget:
-    def __init__(self):
-        self.radius=7
-        self.width=160
-        self.height=90
-        mpl.rcParams['toolbar'] = 'None'
-        plt.ion()
-        self.fig = plt.figure()
-        plt.subplots_adjust(left=0.0, right=1.0, top=1.0, bottom=0.0)
-        self.fig.canvas.toolbar_visible = False
-        self.ax = plt.axes(xlim=(0, self.width), ylim=(0, self.height))
-        self.target = plt.Circle((0, 0), self.radius, color='red')
-        self.ax.add_patch(self.target)
-        plt.axis('off')
-
-        figManager = plt.get_current_fig_manager()
-        figManager.full_screen_toggle()
-
-    def reset_plot(self):
-        x, y = np.random.random(2)
-        self.target.set_center(
-            (self.radius + x * (self.width - 2 * self.radius),
-             self.radius + y * (self.height - 2 * self.radius))
-        )
-
-        self.fig.canvas.draw()
-        self.fig.canvas.flush_events()
-        time.sleep(0.032)
 
 
 def parse_args():
@@ -193,7 +160,6 @@ def main():
 
     onboard_wrapper = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip,
                                      performer=performer, learner=learner)
-    mt = MonitorTarget()
 
     # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
     go = input('press any key to go')
@@ -218,7 +184,6 @@ def main():
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
 
-            mt.reset_plot()
             next_obs, next_state = env.reset()
             onboard_wrapper.send_init_ob((next_obs, next_state))
             done = False
