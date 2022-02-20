@@ -20,8 +20,10 @@ class RemoteWrapper:
 
         (cmd_sock, address) = server_cmd_sock.accept()
         (data_sock, address) = server_data_sock.accept()
+        print('Command and Data sockets are connected.')
 
         mode = recv_message(data_sock)
+        print("Mode:", mode)
         self._cmd_sock = cmd_sock
         self._data_sock = data_sock
         self._mode = mode

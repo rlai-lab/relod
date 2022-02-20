@@ -56,6 +56,7 @@ def parse_args():
     parser.add_argument('--critic_lr', default=1e-3, type=float)
     parser.add_argument('--critic_tau', default=0.01, type=float)
     parser.add_argument('--critic_target_update_freq', default=1, type=int)
+    parser.add_argument('--bootstrap_terminal', default=0, type=int)
     # actor
     parser.add_argument('--actor_lr', default=1e-3, type=float)
     parser.add_argument('--actor_update_freq', default=1, type=int)
@@ -65,11 +66,10 @@ def parse_args():
     parser.add_argument('--discount', default=1., type=float)
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
-    parser.add_argument('--bootstrap_terminal', default=0, type=int)
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=0, type=int)
@@ -125,8 +125,8 @@ def main():
     args.env_action_space = env.action_space
 
     performer = SACRADPerformer(args)
-    learner = SACRADLearner(performer=performer, args=args)
-
+    #learner = SACRADLearner(performer=performer, args=args)
+    learner = None
     if mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
         args_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         args_sock.connect((args.remote_ip, args.args_port))
