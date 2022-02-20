@@ -52,6 +52,7 @@ def parse_args():
     parser.add_argument('--critic_lr', default=1e-3, type=float)
     parser.add_argument('--critic_tau', default=0.01, type=float)
     parser.add_argument('--critic_target_update_freq', default=1, type=int)
+    parser.add_argument('--bootstrap_terminal', default=0, type=int)
     # actor
     parser.add_argument('--actor_lr', default=1e-3, type=float)
     parser.add_argument('--actor_update_freq', default=1, type=int)
@@ -61,7 +62,6 @@ def parse_args():
     parser.add_argument('--discount', default=1., type=float)
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
-    parser.add_argument('--bootstrap_terminal', default=0, type=int)
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.103', type=str)
     parser.add_argument('--port', default=9876, type=int)
