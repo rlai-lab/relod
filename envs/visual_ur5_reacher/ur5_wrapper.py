@@ -229,23 +229,29 @@ def interaction_nn():
     args.env_action_space = env.action_space
 
     performer = SACRADPerformer(args)
+    performer.init_policy()
     # First inference call takes a lot of time (~1 min). Do it before agent-env interaction loop
     img, prop = env.reset()
+    start = time.time()
     action = performer.sample_action((img, prop), args.init_steps + 1)
+    print("First inference took:", time.time() - start)
 
     n_episodes = 10
     for i_episode in range(n_episodes):
         img, prop = env.reset()
         done = False
-        tic = time.time()
+        start = time.time()
         step = args.init_steps + 1
         while not done:
+            tic = time.time()
             action = performer.sample_action((img, prop), step)
+            print("Inference took", time.time() - tic)
             next_img, next_prop, reward, done, _ = env.step(action)
             img = next_img
             prop = next_prop
             step += 1
-        print("Episode {} took {}s".format(i_episode, time.time() - tic))
+        print("Episode {} took {}s".format(i_episode, time.time() - start))
 
 if __name__ == '__main__':
-    interaction_random_pi()
+    #interaction_random_pi()
+    interaction_nn()
