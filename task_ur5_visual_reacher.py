@@ -78,7 +78,7 @@ def parse_args():
     # parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='r', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=0, type=int)
@@ -147,7 +147,7 @@ def main():
     episode_length_step = int(args.episode_length_time / args.dt)
 
     performer = SACRADPerformer(args)
-    if mode == MODE.ONBOARD_REMOTE and MODE.REMOTE_ONLY:
+    if mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
         learner = None
     elif mode == MODE.LOCAL_ONLY:
         learner = SACRADLearner(performer=performer, args=args)
@@ -173,7 +173,8 @@ def main():
     episode, episode_reward, episode_step, done = 0, 0, 0, True
 
     # First inference took a while (~1 min), do it before the agent-env interaction loop
-    performer.sample_action((obs, state), args.init_steps+1)
+    if mode != MODE.REMOTE_ONLY:
+        performer.sample_action((obs, state), args.init_steps+1)
     onboard_wrapper.send_init_ob((obs, state))
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
