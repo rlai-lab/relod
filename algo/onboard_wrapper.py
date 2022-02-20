@@ -19,6 +19,7 @@ class OnboardWrapper:
             raise NotImplementedError()
 
         self._mode = mode
+        print("Mode:", mode)
         self._performer = performer
         self._learner = learner
         if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:

@@ -64,6 +64,7 @@ def parse_args():
     parser.add_argument('--critic_lr', default=3e-4, type=float)
     parser.add_argument('--critic_tau', default=0.01, type=float)
     parser.add_argument('--critic_target_update_freq', default=2, type=int)
+    parser.add_argument('--bootstrap_terminal', default=1, type=int)
     # actor
     parser.add_argument('--actor_lr', default=3e-4, type=float)
     parser.add_argument('--actor_update_freq', default=2, type=int)
@@ -73,7 +74,6 @@ def parse_args():
     parser.add_argument('--discount', default=0.99, type=float)
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
-    parser.add_argument('--bootstrap_terminal', default=1, type=int)
     # agent
     # parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
@@ -171,11 +171,11 @@ def main():
     # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
     go = input('press any key to go')
     episode, episode_reward, episode_step, done = 0, 0, 0, True
-    onboard_wrapper.send_init_ob((obs, state))
-    start_time = time.time()
 
     # First inference took a while (~1 min), do it before the agent-env interaction loop
     performer.sample_action((obs, state), args.init_steps+1)
+    onboard_wrapper.send_init_ob((obs, state))
+    start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
         action = onboard_wrapper.sample_action((obs, state), step)
 
@@ -196,7 +196,6 @@ def main():
 
             next_obs, next_state = env.reset()
             onboard_wrapper.send_init_ob((next_obs, next_state))
-            done = False
             episode_reward = 0
             episode_step = 0
             episode += 1
