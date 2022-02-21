@@ -6,8 +6,6 @@ from algo.sac_rad_agent import SACRADPerformer, SACRADLearner
 import utils
 from envs.mujoco_visual_reacher.env import ReacherWrapper
 from algo.comm import MODE
-import socket
-from algo.comm import send_message
 from logger import Logger
 import os
 
@@ -69,7 +67,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=0, type=int)
@@ -108,12 +106,11 @@ def main():
                      f'seed={args.seed}_' \
                      f'tol={args.tol}/'
 
-    if mode == MODE.LOCAL_ONLY:
-        utils.make_dir(args.work_dir)
+    utils.make_dir(args.work_dir)
 
-        model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-        args.model_dir = model_dir
-        L = Logger(args.work_dir, use_tb=args.save_tb)
+    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
+    args.model_dir = model_dir
+    L = Logger(args.work_dir, use_tb=args.save_tb)
 
     env = ReacherWrapper(args.tol, image_shape, args.image_period, use_ground_truth=True)
     utils.set_seed_everywhere(args.seed, env)
@@ -124,40 +121,28 @@ def main():
     args.net_params = config
     args.env_action_space = env.action_space
 
-    performer = SACRADPerformer(args)
-    #learner = SACRADLearner(performer=performer, args=args)
-    learner = None
-    if mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
-        args_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        args_sock.connect((args.remote_ip, args.args_port))
-        send_message(args, args_sock)
-        args_sock.close()
-        time.sleep(5)
-    elif mode == MODE.LOCAL_ONLY:
-        pass
-    else:
-        raise NotImplementedError()
-
     episode_length_step = int(args.episode_length_time / args.dt)
-    onboard_wrapper = OnboardWrapper(episode_length_step,
-                           mode,
-                           remote_ip=args.remote_ip,
-                           performer=performer,
-                           learner=learner)
+    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
+    agent.send_data(args)
+    agent.init_performer(SACRADPerformer, args)
+    agent.init_learner(SACRADLearner, args, agent.performer)
 
+    # sync initial weights with remote
+    agent.apply_remote_policy(block=True)
+    
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     image, propri = env.reset()
-    onboard_wrapper.send_init_ob((image, propri))
+    agent.send_init_ob((image, propri))
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        action = onboard_wrapper.sample_action((image, propri), step)
+        action = agent.sample_action((image, propri), step)
 
         next_image, next_propri, reward, done, _ = env.step(action)
 
         episode_reward += reward
         episode_step += 1
 
-        onboard_wrapper.push_sample((image, propri), action, reward, (next_image, next_propri), done)
+        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
         
         if done or (episode_step == episode_length_step): # set time out here
             if mode == MODE.LOCAL_ONLY:
@@ -167,31 +152,30 @@ def main():
                 L.log('train/episode', episode+1, step)
 
             next_image, next_propri = env.reset()
-            onboard_wrapper.send_init_ob((next_image, next_propri))
+            agent.send_init_ob((next_image, next_propri))
             episode_reward = 0
             episode_step = 0
             episode += 1
             start_time = time.time()
         
-        stat = onboard_wrapper.update_policy(step)
-        if mode == MODE.LOCAL_ONLY and stat is not None:
+        stat = agent.update_policy(step)
+        if stat is not None:
             for k, v in stat.items():
                 L.log(k, v, step)
         
         image = next_image
         propri = next_propri
 
-        if mode == MODE.LOCAL_ONLY and args.save_model and (step+1) % args.save_model_freq == 0:
-            performer.save_policy_to_file(step)
+        if (step+1) % args.save_model_freq == 0:
+            agent.save_policy_to_file(step)
 
         time.sleep(0.04)
 
-    if mode == MODE.LOCAL_ONLY:
-        performer.save_policy_to_file(step)
+    agent.save_policy_to_file(step)
     # Clean up
-    onboard_wrapper.close()
+    agent.close()
     env.close()
-    print('Training finished')
+    print('Train finished')
 
 if __name__ == '__main__':
     main()

@@ -2,8 +2,6 @@ import torch
 import argparse
 from algo.remote_wrapper import RemoteWrapper
 from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
-import socket
-from algo.comm import recv_message
 from logger import Logger
 import time
 import utils
@@ -25,17 +23,14 @@ def parse_args():
 def main():
     server_args = parse_args()
 
-    server_args_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_args_sock.bind(('', server_args.args_port))
+    agent = RemoteWrapper(port=server_args.port)
+    args = agent.recv_data()
+    agent.init_performer(SACRADPerformer, args)
+    agent.init_learner(SACRADLearner, args, agent.performer)
 
-    server_args_sock.listen(1)
-    print('agent args socket created, listening...')
+    # sync initial weights with oboard
+    agent.send_policy()
 
-    (args_sock, address) = server_args_sock.accept()
-    print('Connection accepted, ip:', address)
-
-    args = recv_message(args_sock)
-    args_sock.close()
     utils.set_seed_everywhere(args.seed)
 
     utils.make_dir(args.work_dir)
@@ -48,40 +43,36 @@ def main():
     else:
         args.device = server_args.device
 
-    performer = SACRADPerformer(args)
-    learner = SACRADLearner(performer, args)
-    remote_wrapper = RemoteWrapper(server_args.port, performer=None, learner=learner)
-
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     episode_length_step = int(args.episode_length_time / args.dt)
-    (image, propri) = remote_wrapper.receive_init_ob()
+    (image, propri) = agent.receive_init_ob()
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        action = remote_wrapper.sample_action((image, propri), step)
+        action = agent.sample_action((image, propri), step)
         
-        (reward, (next_image, next_propri), done) = remote_wrapper.receive_sample()
+        (reward, (next_image, next_propri), done) = agent.receive_sample_from_onboard()
         
         episode_reward += reward
         episode_step += 1
 
-        learner.push_sample((image, propri), action, reward, (next_image, next_propri), done)
+        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
 
         if done or (episode_step == episode_length_step): # set time out here
             L.log('train/duration', time.time() - start_time, step)
             L.log('train/episode_reward', episode_reward, step)
             L.dump(step)
-            learner.pause_update()
-            (next_image, next_propri) = remote_wrapper.receive_init_ob()
-            learner.resume_update()
+            agent.learner.pause_update()
+            (next_image, next_propri) = agent.receive_init_ob()
+            agent.learner.resume_update()
             episode_reward = 0
             episode_step = 0
             episode += 1
             L.log('train/episode', episode, step)
             start_time = time.time()
-
-        stat = remote_wrapper.update_policy(step)
+            
+        stat = agent.update_policy(step)
         if stat is not None:
             for k, v in stat.items():
                 L.log(k, v, step)
@@ -89,12 +80,15 @@ def main():
         (image, propri) = (next_image, next_propri)
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
-            performer.save_policy_to_file(step)
+            agent.save_policy_to_file(step)
+        
+        if step > args.init_steps and (step+1) % args.update_every == 0:
+            agent.send_policy()
 
-    performer.save_policy_to_file(step)
-    learner.pause_update()
-    remote_wrapper.close()
-    print('Training finished')
+    agent.save_policy_to_file(step)
+    agent.learner.pause_update()
+    agent.close()
+    print('Train finished')
 
 if __name__ == '__main__':
     main()
