@@ -1,9 +1,10 @@
-from algo.comm import MODE, send_message, recv_message
+from algo.comm import MODE
+from algo.rl_agent import BaseLearner, BasePerformer, BaseWrapper
 import socket
 
-class RemoteWrapper:
-    def __init__(self, port=9876, performer=None, learner=None):
-
+class RemoteWrapper(BaseWrapper):
+    def __init__(self, port=9876):
+        super().__init__()
         server_cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_cmd_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -18,74 +19,98 @@ class RemoteWrapper:
         print('Command socket created, listening...')
         print('Data socket created, listening...')
 
-        (cmd_sock, address) = server_cmd_sock.accept()
-        (data_sock, address) = server_data_sock.accept()
-        print('Command and Data sockets are connected.')
+        (self._cmd_sock, address) = server_cmd_sock.accept()
+        (self._data_sock, address) = server_data_sock.accept()
+        print('Command and Data sockets are connected, ip:', address)
 
-        mode = recv_message(data_sock)
-        print("Mode:", mode)
-        self._cmd_sock = cmd_sock
-        self._data_sock = data_sock
-        self._mode = mode
-        self._performer = performer
-        self._learner = learner
+        self._mode = MODE.REMOTE_ONLY
+        self._mode = self.recv_data()
+        print("Mode:", self._mode)
 
-        if mode == MODE.REMOTE_ONLY:
-            assert performer != None and learner != None
-        elif mode == MODE.ONBOARD_REMOTE:
-            assert  performer == None and learner != None
+    def init_performer(self, performer_class: BasePerformer, *args, **kwargs):
+        if self._mode == MODE.REMOTE_ONLY:
+            self._performer = performer_class(*args, **kwargs)
+        elif self._mode == MODE.ONBOARD_REMOTE:
+            pass
         else:
-            raise NotImplementedError()
+            raise NotImplementedError('init_performer: {} mode is not supported'.format(self._mode))
 
-        if mode == MODE.ONBOARD_REMOTE:
-            send_message(self._learner.get_policy(), data_sock)
+    def init_learner(self, learner_class: BaseLearner, *args, **kwargs):
+        if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
+            self._learner = learner_class(*args, **kwargs)
+        else:
+            raise NotImplementedError('init_learner: {} mode is not supported'.format(self._mode))
 
     def receive_init_ob(self):
-        send_message('wait for new episode', self._cmd_sock)
-        return recv_message(self._data_sock)
+        if self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
+            self.send_cmd('wait for new episode')
+            return self.recv_data()
+        else:
+            raise NotImplementedError('receive_init_ob: {} mode is not supported'.format(self._mode))
 
     def sample_action(self, ob, *args, **kwargs):
         if self._mode == MODE.REMOTE_ONLY:
             action = self._performer.sample_action(ob, *args, **kwargs)
-            send_message(action, self._data_sock)
+            self.send_data(action)
         elif self._mode == MODE.ONBOARD_REMOTE:
-            action = recv_message(self._data_sock)
+            action = self.recv_data()
         else:
             raise NotImplementedError('sample_action: {} mode is not supported'.format(self._mode))
 
         return action
 
-    def receive_sample(self):
+    def receive_sample_from_onboard(self):
         if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
-            return recv_message(self._data_sock)
+            return self.recv_data()
         else: 
             raise NotImplementedError('receive_sample: {} mode is not supported'.format(self._mode))
 
+    def push_sample(self, ob, action, reward, next_ob, done, *args, **kwargs):
+        if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
+            self._learner.push_sample(ob, action, reward, next_ob, done, *args, **kwargs)
+        else:
+            raise NotImplementedError('push_sample: {} mode is not supported'.format(self._mode))
+            
+    def send_policy(self):
+        if self._mode == MODE.ONBOARD_REMOTE:
+            self.send_data(self.learner.get_policy())
+        elif self._mode == MODE.REMOTE_ONLY:
+            pass
+        else:
+            raise NotImplementedError('send_policy: {} mode is not supported'.format(self._mode))
+
     def update_policy(self, *args, **kwargs):
-        val = self._learner.update_policy(*args, **kwargs)
-        if self._mode == MODE.REMOTE_ONLY:
-            send_message(val, self._data_sock)
-        elif self._mode == MODE.ONBOARD_REMOTE:
-            if val is not None:
-                policy = self._learner.get_policy()
-                send_message((val, policy), self._data_sock)
+        if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
+            return self._learner.update_policy(*args, **kwargs)
         else:
             raise NotImplementedError('update_policy: {} mode is not supported'.format(self._mode))
-        
-        return val
 
-    def close(self, *args, **kwargs):
-        self._learner.close(*args, **kwargs)
+    def save_policy_to_file(self, *args, **kwargs):
         if self._mode == MODE.REMOTE_ONLY:
-            self._performer.close(*args, **kwargs)
+            self._performer.save_policy_to_file(*args, **kwargs)
+        elif self._mode == MODE.ONBOARD_REMOTE:
+            pass
         else:
-            raise NotImplementedError()
+            raise NotImplementedError('save_policy_to_file: {} mode is not supported'.format(self._mode))
+    
+    def load_policy_from_file(self, *args, **kwargs):
+        if self._mode == MODE.REMOTE_ONLY:
+            self._performer.load_policy_from_file(*args, **kwargs)
+        elif self._mode == MODE.ONBOARD_REMOTE:
+            pass
+        else:
+            raise NotImplementedError('load_policy_to_file: {} mode is not supported'.format(self._mode))
+    
+    def close(self, *args, **kwargs):
+        if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
+            self.send_cmd('close')
+            if self._mode == MODE.REMOTE_ONLY:
+                self._performer.close(*args, **kwargs)
 
-        send_message('close', self._cmd_sock)
-        if self._mode == MODE.ONBOARD_REMOTE:
-            assert recv_message(self._cmd_sock) == 'close sockets' # this is needed to prevent exception on receive_p 
-        
-        self._cmd_sock.close()
-        self._data_sock.close()
+            self._learner.close(*args, **kwargs)  
+            self._cmd_sock.close()
+            self._data_sock.close()
+        else:
+            raise NotImplementedError('close: {} mode is not supported'.format(self._mode))
 
         del self

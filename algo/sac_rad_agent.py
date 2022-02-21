@@ -16,7 +16,6 @@ class SACRADPerformer(BasePerformer):
         if not 'conv' in self._args.net_params:  # no image
             self._args.image_shape = (0, 0, 0)
 
-    def init_policy(self):
         self._actor = ActorModel(self._args.image_shape,
                                  self._args.proprioception_shape,
                                  self._args.action_shape[0],
@@ -56,7 +55,7 @@ class SACRADPerformer(BasePerformer):
             torch.load('%s/critic_%s.pt' % (self._args.model_dir, self._args.load_model))
         )
 
-    def apply_remote_policy(self, policy):
+    def load_policy(self, policy):
         actor_weights = policy['actor']
         for key in actor_weights:
             actor_weights[key] = torch.from_numpy(actor_weights[key]).to(self._args.device)
@@ -97,7 +96,7 @@ class SACRADPerformer(BasePerformer):
         del self
 
 class SACRADLearner(BaseLearner):
-    def __init__(self, performer, args) -> None:
+    def __init__(self, args, performer=None) -> None:
         self._args = args
         self._args.device = torch.device(args.device)
 
@@ -134,8 +133,10 @@ class SACRADLearner(BaseLearner):
                 capacity=self._args.replay_buffer_capacity,
                 batch_size=self._args.batch_size)
 
+        if performer == None:
+            performer = SACRADPerformer(args)
+            
         self._performer = performer
-        self._performer.init_policy()
         self._actor = performer._actor
         self._critic = performer._critic
         self._critic_target = performer._critic_target
