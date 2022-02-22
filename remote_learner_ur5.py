@@ -122,8 +122,8 @@ def main():
         if step > args.init_steps and (step+1) % args.update_every == 0:
             agent.send_policy()
 
-    agent.save_policy_to_file(step)
-    agent.learner.pause_update()
+    if args.save_model:
+        agent.save_policy_to_file(step)
     agent.close()
     print('Train finished')
 
