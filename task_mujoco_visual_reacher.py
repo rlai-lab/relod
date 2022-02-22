@@ -166,12 +166,13 @@ def main():
         image = next_image
         propri = next_propri
 
-        if (step+1) % args.save_model_freq == 0:
+        if args.save_model and (step+1) % args.save_model_freq == 0:
             agent.save_policy_to_file(step)
 
         time.sleep(0.04)
 
-    agent.save_policy_to_file(step)
+    if args.save_model:
+        agent.save_policy_to_file(step)
     # Clean up
     agent.close()
     env.close()
