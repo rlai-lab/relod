@@ -23,7 +23,6 @@ class RemoteWrapper(BaseWrapper):
         (self._data_sock, address) = server_data_sock.accept()
         print('Command and Data sockets are connected, ip:', address)
 
-        self._mode = MODE.REMOTE_ONLY
         self._mode = self.recv_data()
         print("Mode:", self._mode)
 
