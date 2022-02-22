@@ -112,11 +112,11 @@ def main():
                      f'dt={args.dt}_bs={args.batch_size}_' \
                      f'dim={args.image_width}*{args.image_height}_{args.seed}/'
 
-    if mode == MODE.LOCAL_ONLY:
-        utils.make_dir(args.work_dir)
+    utils.make_dir(args.work_dir)
 
-        model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-        args.model_dir = model_dir
+    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
+    args.model_dir = model_dir
+    if mode == MODE.LOCAL_ONLY:
         L = Logger(args.work_dir, use_tb=args.save_tb)
 
     env = UR5Wrapper(
