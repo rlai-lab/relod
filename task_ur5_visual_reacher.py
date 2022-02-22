@@ -145,7 +145,13 @@ def main():
 
     episode_length_step = int(args.episode_length_time / args.dt)
     agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
+    agent.send_data(args)
+    agent.init_performer(SACRADPerformer, args)
+    agent.init_learner(SACRADLearner, args, agent.performer)
 
+    # sync initial weights with remote
+    agent.apply_remote_policy(block=True)
+    
     # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
     go = input('press any key to go')
     episode, episode_reward, episode_step, done = 0, 0, 0, True
