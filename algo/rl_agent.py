@@ -4,6 +4,9 @@ class BaseWrapper:
     def __init__(self) -> None:
         self._performer = None
         self._learner = None
+        self._mode = MODE.REMOTE_ONLY
+        self._data_sock = None
+        self._cmd_sock = None
          
     def init_performer(self, *args, **kwargs):
         raise NotImplementedError()
