@@ -1,7 +1,6 @@
 import torch
 import argparse
 import utils
-import socket
 import time
 import os
 
@@ -200,6 +199,7 @@ def main():
 
     if args.save_model:
         agent.save_policy_to_file(step)
+        
     # Clean up
     agent.close()
     env.terminate()
