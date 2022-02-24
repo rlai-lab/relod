@@ -107,13 +107,13 @@ class OnboardWrapper(BaseWrapper):
         else:
             raise NotImplementedError('send_init_ob: {} mode is not supported'.format(self._mode))
     
-    def push_sample(self, ob, action, reward, next_ob, done, *args, **kwargs):
+    def push_sample(self, ob, action, reward, next_ob, done, *args):
         if self._mode == MODE.LOCAL_ONLY:
-            self._learner.push_sample(ob, action, reward, next_ob, done, *args, **kwargs)
+            self._learner.push_sample(ob, action, reward, next_ob, done, *args)
         elif self._mode == MODE.REMOTE_ONLY:
-            self.send_data((reward, next_ob, done))
+            self.send_data((reward, next_ob, done, *args))
         elif self._mode == MODE.ONBOARD_REMOTE:
-            self._sample_queue.put_nowait((reward, next_ob, done)) # fatal error if sample queue is full
+            self._sample_queue.put_nowait((reward, next_ob, done, *args)) # fatal error if sample queue is full
         else:
             raise NotImplementedError('push_sample: {} mode is not supported'.format(self._mode))
 
