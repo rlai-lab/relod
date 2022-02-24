@@ -109,7 +109,7 @@ class OnboardWrapper(BaseWrapper):
     
     def push_sample(self, ob, action, reward, next_ob, done, *args, **kwargs):
         if self._mode == MODE.LOCAL_ONLY:
-            self._learner.push_sample(ob, action, reward, next_ob, done)
+            self._learner.push_sample(ob, action, reward, next_ob, done, *args, **kwargs)
         elif self._mode == MODE.REMOTE_ONLY:
             self.send_data((reward, next_ob, done))
         elif self._mode == MODE.ONBOARD_REMOTE:
