@@ -12,6 +12,8 @@ from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from senseact.utils import NormalizedEnv
 from envs.create2_visual_reacher.env import Create2VisualReacherEnv
 
+import numpy as np
+
 config = {
     'conv': [
         # in_channel, out_channel, kernel_size, stride
@@ -42,15 +44,15 @@ def parse_args():
     parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--min_target_size', default=0.12, type=float)
     # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
+    parser.add_argument('--replay_buffer_capacity', default=10000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
     parser.add_argument('--env_steps', default=160000, type=int)
-    parser.add_argument('--batch_size', default=256, type=int)
-    parser.add_argument('--async_mode', default=True, action='store_true')
+    parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--async_mode', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
-    parser.add_argument('--update_every', default=50, type=int)
+    parser.add_argument('--update_every', default=1, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
     # critic
     parser.add_argument('--critic_lr', default=1e-3, type=float)
@@ -69,6 +71,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.103', type=str)
     parser.add_argument('--port', default=9876, type=int)
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -159,7 +162,7 @@ def main():
     agent.send_init_ob((image, propri))
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        action = agent.sample_action((image, propri))
+        action = agent.sample_action((image, propri), step)
 
         # step in the environment
         (next_image, next_propri), reward, done, _ = env.step(action)
@@ -177,6 +180,11 @@ def main():
                 L.log('train/episode_reward', episode_reward, step)
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
+            env.step(np.array([0, 0]))
+            stat = agent.update_policy(step)
+            if stat is not None:
+                for k, v in stat.items():
+                    L.log(k, v, step)
 
             (next_image, next_propri) = env.reset()
             agent.send_init_ob((next_image, next_propri))
@@ -185,10 +193,6 @@ def main():
             episode += 1
             start_time = time.time()
         
-        stat = agent.update_policy(step)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
         
         image = next_image
         propri = next_propri
