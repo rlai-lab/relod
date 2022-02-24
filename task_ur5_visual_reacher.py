@@ -10,6 +10,7 @@ from algo.onboard_wrapper import OnboardWrapper
 from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from envs.visual_ur5_reacher.configs.ur5_config import config
 from envs.visual_ur5_reacher.ur5_wrapper import UR5Wrapper
+from remote_learner_ur5 import MonitorTarget
 
 config = {
     'conv': [
@@ -99,6 +100,8 @@ def main():
         mode = MODE.REMOTE_ONLY
     elif args.mode == 'o':
         mode = MODE.LOCAL_ONLY
+        mt = MonitorTarget()
+        mt.reset_plot()
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
     else:
@@ -178,6 +181,7 @@ def main():
                 L.log('train/episode_reward', episode_reward, step)
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
+                mt.reset_plot()
 
             next_obs, next_state = env.reset()
             agent.send_init_ob((next_obs, next_state))
