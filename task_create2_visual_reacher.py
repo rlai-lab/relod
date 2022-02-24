@@ -180,11 +180,11 @@ def main():
                 L.log('train/episode_reward', episode_reward, step)
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
-            env.step(np.array([0, 0]))
-            stat = agent.update_policy(step)
-            if stat is not None:
-                for k, v in stat.items():
-                    L.log(k, v, step)
+                env.step(np.array([0, 0]))
+                stat = agent.update_policy(step)
+                if stat is not None:
+                    for k, v in stat.items():
+                        L.log(k, v, step)
 
             (next_image, next_propri) = env.reset()
             agent.send_init_ob((next_image, next_propri))
@@ -193,6 +193,8 @@ def main():
             episode += 1
             start_time = time.time()
         
+        if mode == MODE.ONBOARD_REMOTE:
+            agent.update_policy(step)
         
         image = next_image
         propri = next_propri
