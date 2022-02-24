@@ -1,12 +1,18 @@
 import torch
 import argparse
-import os
-from algo.onboard_wrapper import OnboardWrapper
-from algo.sac_rad_agent import SACRADAgent
 import utils
+import time
+import os
+
+from logger import Logger
+from algo.comm import MODE
+from algo.onboard_wrapper import OnboardWrapper
+from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
+
 from senseact.utils import NormalizedEnv
 from envs.create2_visual_reacher.env import Create2VisualReacherEnv
 
+import numpy as np
 
 config = {
     'conv': [
@@ -38,15 +44,15 @@ def parse_args():
     parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--min_target_size', default=0.12, type=float)
     # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
+    parser.add_argument('--replay_buffer_capacity', default=10000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
     parser.add_argument('--env_steps', default=160000, type=int)
-    parser.add_argument('--batch_size', default=256, type=int)
-    parser.add_argument('--async_mode', default=True, action='store_true')
+    parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--async_mode', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
-    parser.add_argument('--update_every', default=50, type=int)
+    parser.add_argument('--update_every', default=1, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
     # critic
     parser.add_argument('--critic_lr', default=1e-3, type=float)
@@ -65,6 +71,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.103', type=str)
     parser.add_argument('--port', default=9876, type=int)
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -79,6 +86,15 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    if args.mode == 'r':
+        mode = MODE.REMOTE_ONLY
+    elif args.mode == 'o':
+        mode = MODE.LOCAL_ONLY
+    elif args.mode == 'ro':
+        mode = MODE.ONBOARD_REMOTE
+    else:
+        raise  NotImplementedError()
 
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -97,6 +113,13 @@ def main():
                      f'seed={args.seed}_' \
                      f'target_size={args.min_target_size}/'
 
+    utils.make_dir(args.work_dir)
+
+    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
+    args.model_dir = model_dir
+    if mode == MODE.LOCAL_ONLY:
+        L = Logger(args.work_dir, use_tb=args.save_tb)
+    
     if not 'conv' in config:
         image_shape = (0, 0, 0)
     else: 
@@ -121,16 +144,25 @@ def main():
     args.env_action_space = env.action_space
 
     episode_length_step = int(args.episode_length_time / args.dt)
-    agent = OnboardWrapper(episode_length_step,
-                           remote_ip=args.remote_ip,
-                           rl_agent_class=None, 
-                           rl_agent_args=args)
+    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
+    agent.send_data(args)
+    agent.init_performer(SACRADPerformer, args)
+    agent.init_learner(SACRADLearner, args, agent.performer)
+
+    # sync initial weights with remote
+    agent.apply_remote_policy(block=True)
 
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     (image, propri) = env.reset()
+
+    # First inference took a while (~1 min), do it before the agent-env interaction loop
+    if mode != MODE.REMOTE_ONLY:
+        agent.performer.sample_action((image, propri), args.init_steps+1)
+    
     agent.send_init_ob((image, propri))
+    start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        action = agent.sample_action((image, propri))
+        action = agent.sample_action((image, propri), step)
 
         # step in the environment
         (next_image, next_propri), reward, done, _ = env.step(action)
@@ -143,21 +175,40 @@ def main():
         agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
 
         if done or (episode_step == episode_length_step): # set time out here
+            if mode == MODE.LOCAL_ONLY:
+                L.log('train/duration', time.time() - start_time, step)
+                L.log('train/episode_reward', episode_reward, step)
+                L.dump(step)
+                L.log('train/episode', episode+1, step)
+                env.step(np.array([0, 0]))
+                stat = agent.update_policy(step)
+                if stat is not None:
+                    for k, v in stat.items():
+                        L.log(k, v, step)
+
             (next_image, next_propri) = env.reset()
             agent.send_init_ob((next_image, next_propri))
-            done = False
             episode_reward = 0
             episode_step = 0
             episode += 1
+            start_time = time.time()
         
-        agent.update_policy()
+        if mode == MODE.ONBOARD_REMOTE:
+            agent.update_policy(step)
         
         image = next_image
         propri = next_propri
-        
+
+        if args.save_model and (step+1) % args.save_model_freq == 0:
+            agent.save_policy_to_file(step)
+
+    if args.save_model:
+        agent.save_policy_to_file(step)
+
     # Clean up
     agent.close()
     env.close()
+    print('Train finished')
 
 if __name__ == '__main__':
     main()

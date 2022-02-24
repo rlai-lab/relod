@@ -1,17 +1,16 @@
 import torch
 import argparse
 import utils
-import socket
 import time
 import os
 
 from logger import Logger
-from algo.comm import MODE, send_message
+from algo.comm import MODE
 from algo.onboard_wrapper import OnboardWrapper
 from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from envs.visual_ur5_reacher.configs.ur5_config import config
 from envs.visual_ur5_reacher.ur5_wrapper import UR5Wrapper
-
+from remote_learner_ur5 import MonitorTarget
 
 config = {
     'conv': [
@@ -38,7 +37,7 @@ def parse_args():
     parser.add_argument('--setup', default='Visual-UR5')
     parser.add_argument('--env_name', default='Visual-UR5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=0, type=int)
+    parser.add_argument('--camera_id', default=2, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='reaching', type=str)
@@ -78,7 +77,7 @@ def parse_args():
     # parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='r', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=0, type=int)
@@ -101,6 +100,8 @@ def main():
         mode = MODE.REMOTE_ONLY
     elif args.mode == 'o':
         mode = MODE.LOCAL_ONLY
+        mt = MonitorTarget()
+        mt.reset_plot()
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
     else:
@@ -113,11 +114,11 @@ def main():
                      f'dt={args.dt}_bs={args.batch_size}_' \
                      f'dim={args.image_width}*{args.image_height}_{args.seed}/'
 
-    if mode == MODE.LOCAL_ONLY:
-        utils.make_dir(args.work_dir)
+    utils.make_dir(args.work_dir)
 
-        model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-        args.model_dir = model_dir
+    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
+    args.model_dir = model_dir
+    if mode == MODE.LOCAL_ONLY:
         L = Logger(args.work_dir, use_tb=args.save_tb)
 
     env = UR5Wrapper(
@@ -145,40 +146,26 @@ def main():
     args.env_action_space = env.action_space
 
     episode_length_step = int(args.episode_length_time / args.dt)
+    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
+    agent.send_data(args)
+    agent.init_performer(SACRADPerformer, args)
+    agent.init_learner(SACRADLearner, args, agent.performer)
 
-    performer = SACRADPerformer(args)
-    if mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
-        learner = None
-    elif mode == MODE.LOCAL_ONLY:
-        learner = SACRADLearner(performer=performer, args=args)
-    else:
-        raise NotImplementedError
-
-    if mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
-        args_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        args_sock.connect((args.remote_ip, args.args_port))
-        send_message(args, args_sock)
-        args_sock.close()
-        time.sleep(5)
-    elif mode == MODE.LOCAL_ONLY:
-        pass
-    else:
-        raise NotImplementedError()
-
-    onboard_wrapper = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip,
-                                     performer=performer, learner=learner)
-
+    # sync initial weights with remote
+    agent.apply_remote_policy(block=True)
+    
     # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
     go = input('press any key to go')
     episode, episode_reward, episode_step, done = 0, 0, 0, True
 
     # First inference took a while (~1 min), do it before the agent-env interaction loop
     if mode != MODE.REMOTE_ONLY:
-        performer.sample_action((obs, state), args.init_steps+1)
-    onboard_wrapper.send_init_ob((obs, state))
+        agent.performer.sample_action((obs, state), args.init_steps+1)
+    
+    agent.send_init_ob((obs, state))
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        action = onboard_wrapper.sample_action((obs, state), step)
+        action = agent.sample_action((obs, state), step)
 
         # step in the environment
         next_obs, next_state, reward, done, _ = env.step(action)
@@ -186,7 +173,7 @@ def main():
         episode_reward += reward
         episode_step += 1
         
-        onboard_wrapper.push_sample((obs, state), action, reward, (next_obs, next_state), done)
+        agent.push_sample((obs, state), action, reward, (next_obs, next_state), done)
 
         if done and step > 0:
             if mode == MODE.LOCAL_ONLY:
@@ -194,31 +181,33 @@ def main():
                 L.log('train/episode_reward', episode_reward, step)
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
+                mt.reset_plot()
 
             next_obs, next_state = env.reset()
-            onboard_wrapper.send_init_ob((next_obs, next_state))
+            agent.send_init_ob((next_obs, next_state))
             episode_reward = 0
             episode_step = 0
             episode += 1
             start_time = time.time()
 
-        stat = onboard_wrapper.update_policy(step)
-        if mode == MODE.LOCAL_ONLY and stat is not None:
+        stat = agent.update_policy(step)
+        if stat is not None:
             for k, v in stat.items():
                 L.log(k, v, step)
         
         obs = next_obs
         state = next_state
 
-        if mode == MODE.LOCAL_ONLY and args.save_model and (step+1) % args.save_model_freq == 0:
-            performer.save_policy_to_file(step)
+        if args.save_model and (step+1) % args.save_model_freq == 0:
+            agent.save_policy_to_file(step)
 
-    if mode == MODE.LOCAL_ONLY:
-        performer.save_policy_to_file(step)
+    if args.save_model:
+        agent.save_policy_to_file(step)
+        
     # Clean up
-    onboard_wrapper.close()
+    agent.close()
     env.terminate()
-    print('Training finished')
+    print('Train finished')
 
 if __name__ == '__main__':
     main()
