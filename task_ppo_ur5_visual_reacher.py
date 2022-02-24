@@ -11,6 +11,7 @@ from algo.ppo_rad_agent import PPORADPerformer, PPORADLearner
 from envs.visual_ur5_reacher.configs.ur5_config import config
 from envs.visual_ur5_reacher.ur5_wrapper import UR5Wrapper
 from remote_learner_ur5 import MonitorTarget
+import numpy as np
 
 config = {
     'conv': [
@@ -37,7 +38,7 @@ def parse_args():
     parser.add_argument('--setup', default='Visual-UR5')
     parser.add_argument('--env_name', default='Visual-UR5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=2, type=int)
+    parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='reaching', type=str)
@@ -48,39 +49,28 @@ def parse_args():
     parser.add_argument('--ignore_joint', default=False, action='store_true')
     parser.add_argument('--episode_length_time', default=4.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
-    # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
+    parser.add_argument('--env_steps', default=200000, type=int)
+    # RAD
+    parser.add_argument('--freeze_cnn', default=0, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
-    # train
-    parser.add_argument('--init_steps', default=1000, type=int) 
-    parser.add_argument('--env_steps', default=100000, type=int)
-    parser.add_argument('--batch_size', default=128, type=int)
-    parser.add_argument('--async_mode', default=True, action='store_true')
-    parser.add_argument('--max_updates_per_step', default=2, type=float)
-    parser.add_argument('--update_every', default=50, type=int)
-    parser.add_argument('--update_epochs', default=50, type=int)
-    # critic
-    parser.add_argument('--critic_lr', default=3e-4, type=float)
-    parser.add_argument('--critic_tau', default=0.01, type=float)
-    parser.add_argument('--critic_target_update_freq', default=2, type=int)
-    parser.add_argument('--bootstrap_terminal', default=1, type=int)
-    # actor
-    parser.add_argument('--actor_lr', default=3e-4, type=float)
-    parser.add_argument('--actor_update_freq', default=2, type=int)
-    # encoder
-    parser.add_argument('--encoder_tau', default=0.05, type=float)
-    # sac
-    parser.add_argument('--discount', default=0.99, type=float)
-    parser.add_argument('--init_temperature', default=0.1, type=float)
-    parser.add_argument('--alpha_lr', default=1e-4, type=float)
+    # PPO
+    parser.add_argument('--batch_size', default=4096, type=int)
+    parser.add_argument('--opt_batch_size', default=256, type=int, help="Optimizer batch size")
+    parser.add_argument('--n_epochs', default=10, type=int, help="Number of learning epochs per PPO update")
+    parser.add_argument('--actor_lr', default=0.0003, type=float)
+    parser.add_argument('--critic_lr', default=0.001, type=float)
+    parser.add_argument('--gamma', default=0.99, type=float, help="Discount factor")
+    parser.add_argument('--lmbda', default=0.97, type=float, help="Lambda return coefficient")
+    parser.add_argument('--clip_epsilon', default=0.2, type=float, help="Clip epsilon for KL divergence in PPO actor loss")
+    parser.add_argument('--l2_reg', default=1e-4, type=float, help="L2 regularization coefficient")
+    parser.add_argument('--bootstrap_terminal', default=1, type=int, help="Bootstrap on terminal state")
     # agent
-    # parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
-    parser.add_argument('--seed', default=0, type=int)
+    parser.add_argument('--seed', default=1, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
@@ -148,8 +138,8 @@ def main():
     episode_length_step = int(args.episode_length_time / args.dt)
     agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
     agent.send_data(args)
-    agent.init_performer(SACRADPerformer, args)
-    agent.init_learner(SACRADLearner, args, agent.performer)
+    agent.init_performer(PPORADPerformer, args)
+    agent.init_learner(PPORADLearner, args, agent.performer)
 
     # sync initial weights with remote
     agent.apply_remote_policy(block=True)
@@ -158,22 +148,22 @@ def main():
     go = input('press any key to go')
     episode, episode_reward, episode_step, done = 0, 0, 0, True
 
-    # First inference took a while (~1 min), do it before the agent-env interaction loop
-    if mode != MODE.REMOTE_ONLY:
-        agent.performer.sample_action((obs, state), args.init_steps+1)
-    
+    obs = torch.as_tensor(obs.astype(np.float32))[None, :, :, :]
+    state = torch.as_tensor(state.astype(np.float32))[None, :]
     agent.send_init_ob((obs, state))
     start_time = time.time()
-    for step in range(args.env_steps + args.init_steps):
-        action = agent.sample_action((obs, state), step)
+    for step in range(args.env_steps):
+        action, lprob = agent.sample_action((obs, state))
 
         # step in the environment
-        next_obs, next_state, reward, done, _ = env.step(action)
+        next_obs, next_state, reward, done, _ = env.step(action.cpu().numpy())
+        next_obs = torch.as_tensor(next_obs.astype(np.float32))[None, :, :, :]
+        next_state = torch.as_tensor(next_state.astype(np.float32))[None, :]
 
         episode_reward += reward
         episode_step += 1
         
-        agent.push_sample((obs, state), action, reward, (next_obs, next_state), done)
+        agent.push_sample((obs, state), action, reward, (next_obs, next_state), done, lprob)
 
         if done and step > 0:
             if mode == MODE.LOCAL_ONLY:
@@ -181,28 +171,20 @@ def main():
                 L.log('train/episode_reward', episode_reward, step)
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
+                agent.update_policy(done, next_obs, next_state)
                 mt.reset_plot()
 
             next_obs, next_state = env.reset()
+            next_obs = torch.as_tensor(next_obs.astype(np.float32))[None, :, :, :]
+            next_state = torch.as_tensor(next_state.astype(np.float32))[None, :]
             agent.send_init_ob((next_obs, next_state))
             episode_reward = 0
             episode_step = 0
             episode += 1
             start_time = time.time()
-
-        stat = agent.update_policy(step)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
         
         obs = next_obs
         state = next_state
-
-        if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(step)
-
-    if args.save_model:
-        agent.save_policy_to_file(step)
         
     # Clean up
     agent.close()

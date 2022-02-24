@@ -2,6 +2,7 @@ import torch
 import argparse
 from algo.remote_wrapper import RemoteWrapper
 from algo.ppo_rad_agent import PPORADLearner, PPORADPerformer
+from algo.comm import MODE
 from logger import Logger
 import time
 import utils
@@ -49,44 +50,42 @@ def main():
     episode_length_step = int(args.episode_length_time / args.dt)
     (image, propri) = agent.receive_init_ob()
     start_time = time.time()
-    for step in range(args.env_steps + args.init_steps):
-        action = agent.sample_action((image, propri), step)
+    for step in range(args.env_steps):
+        action, lprob = agent.sample_action((image, propri), step)
         
-        (reward, (next_image, next_propri), done) = agent.receive_sample_from_onboard()
+        (reward, (next_image, next_propri), done, lprob) = agent.receive_sample_from_onboard()
         
         episode_reward += reward
         episode_step += 1
 
-        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
+        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done, lprob)
 
         if done or (episode_step == episode_length_step): # set time out here
+            stat = agent.update_policy(done, next_image, next_propri)
+            if agent.mode == MODE.ONBOARD_REMOTE:
+                if stat != None:
+                    agent.send_cmd('new policy')
+                    agent.send_policy()
+                else:
+                    agent.send_cmd('no policy')
+
             L.log('train/duration', time.time() - start_time, step)
             L.log('train/episode_reward', episode_reward, step)
             L.dump(step)
-            agent.learner.pause_update()
             (next_image, next_propri) = agent.receive_init_ob()
-            agent.learner.resume_update()
             episode_reward = 0
             episode_step = 0
             episode += 1
             L.log('train/episode', episode, step)
             start_time = time.time()
             
-        stat = agent.update_policy(step)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
-
+        
         (image, propri) = (next_image, next_propri)
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
             agent.save_policy_to_file(step)
-        
-        if step > args.init_steps and (step+1) % args.update_every == 0:
-            agent.send_policy()
 
     agent.save_policy_to_file(step)
-    agent.learner.pause_update()
     agent.close()
     print('Train finished')
 

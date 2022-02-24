@@ -55,7 +55,7 @@ def parse_args():
     parser.add_argument('--gamma', default=0.99, type=float, help="Discount factor")
     parser.add_argument('--lmbda', default=0.97, type=float, help="Lambda return coefficient")
     parser.add_argument('--clip_epsilon', default=0.2, type=float, help="Clip epsilon for KL divergence in PPO actor loss")
-    parser.add_argument('--l2_reg', default=0, type=float, help="L2 regularization coefficient")
+    parser.add_argument('--l2_reg', default=1e-4, type=float, help="L2 regularization coefficient")
     parser.add_argument('--bootstrap_terminal', default=0, type=int, help="Bootstrap on terminal state")
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
@@ -147,7 +147,13 @@ def main():
                 L.log('train/episode_reward', episode_reward, step)
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
+                agent.update_policy(done, next_image, next_propri)
 
+            if mode == MODE.ONBOARD_REMOTE:
+                cmd = agent.recv_cmd()
+                if cmd == 'new policy':
+                    agent.apply_remote_policy(True)
+            
             next_image, next_propri = env.reset()
             next_image = torch.as_tensor(next_image.astype(np.float32))[None, :, :, :]
             next_propri = torch.as_tensor(next_propri.astype(np.float32))[None, :]
@@ -156,11 +162,6 @@ def main():
             episode_step = 0
             episode += 1
             start_time = time.time()
-        
-        stat = agent.update_policy(done, next_image, next_propri)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
         
         image = next_image
         propri = next_propri

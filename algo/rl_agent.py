@@ -23,7 +23,7 @@ class BaseWrapper:
     def sample_action(self, ob, *args, **kwargs):
         raise NotImplementedError()
 
-    def push_sample(self, *args, **kwargs):
+    def push_sample(self, *args):
         raise NotImplementedError()
 
     def update_policy(self, *args, **kwargs):
@@ -71,6 +71,10 @@ class BaseWrapper:
     @property
     def learner(self):
         return self._learner
+
+    @property
+    def mode(self):
+        return self._mode
 
 class BaseLearner:
     def get_policy(self, *args, **kwargs):
