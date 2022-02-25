@@ -48,12 +48,12 @@ class PPORADPerformer(BasePerformer):
 
     def load_policy(self, policy):
         actor_weights = policy['actor']
-        for key in actor_weights:
-            actor_weights[key] = torch.from_numpy(actor_weights[key]).to(self._args.device)
+        # for key in actor_weights:
+            # actor_weights[key] = torch.from_numpy(actor_weights[key]).to(self._args.device)
 
         critic_weights = policy['critic']
-        for key in critic_weights:
-            critic_weights[key] = torch.from_numpy(critic_weights[key]).to(self._args.device)
+        # for key in critic_weights:
+            # critic_weights[key] = torch.from_numpy(critic_weights[key]).to(self._args.device)
 
         self._actor.load_state_dict(actor_weights)
         self._critic.load_state_dict(critic_weights)
@@ -178,12 +178,12 @@ class PPORADLearner(BaseLearner):
         
     def get_policy(self):
         actor_weights = self._actor.state_dict()
-        for key in actor_weights:
-            actor_weights[key] = actor_weights[key].cpu().numpy()
+        # for key in actor_weights:
+            # actor_weights[key] = actor_weights[key].cpu().numpy()
 
         critic_weights = self._critic.state_dict()
-        for key in critic_weights:
-            critic_weights[key] = critic_weights[key].cpu().numpy()
+        # for key in critic_weights:
+            # critic_weights[key] = critic_weights[key].cpu().numpy()
 
         return {
                 'actor': actor_weights,
