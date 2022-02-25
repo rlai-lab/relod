@@ -173,6 +173,11 @@ def main():
                 L.log('train/episode', episode+1, step)
                 agent.update_policy(done, next_obs, next_state)
                 mt.reset_plot()
+            
+            if mode == MODE.ONBOARD_REMOTE:
+                cmd = agent.recv_cmd()
+                if cmd == 'new policy':
+                    agent.apply_remote_policy(True)
 
             next_obs, next_state = env.reset()
             next_obs = torch.as_tensor(next_obs.astype(np.float32))[None, :, :, :]
