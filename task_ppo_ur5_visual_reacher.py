@@ -49,7 +49,7 @@ def parse_args():
     parser.add_argument('--ignore_joint', default=False, action='store_true')
     parser.add_argument('--episode_length_time', default=4.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
-    parser.add_argument('--env_steps', default=200000, type=int)
+    parser.add_argument('--env_steps', default=150000, type=int)
     # RAD
     parser.add_argument('--freeze_cnn', default=0, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
