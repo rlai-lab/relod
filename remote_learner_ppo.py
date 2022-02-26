@@ -51,7 +51,7 @@ def main():
     (image, propri) = agent.receive_init_ob()
     start_time = time.time()
     for step in range(args.env_steps):
-        action, lprob = agent.sample_action((image, propri), step)
+        action, lprob = agent.sample_action((image, propri))
         
         (reward, (next_image, next_propri), done, lprob, kwargs) = agent.receive_sample_from_onboard()
         
