@@ -72,6 +72,10 @@ class BaseWrapper:
     def learner(self):
         return self._learner
 
+    @property
+    def mode(self):
+        return self._mode
+
 class BaseLearner:
     def get_policy(self, *args, **kwargs):
         raise NotImplementedError()
@@ -90,6 +94,12 @@ class BasePerformer:
         raise NotImplementedError()
 
     def sample_action(self, ob, *args, **kwargs):
+        raise NotImplementedError()
+
+    def save_policy_to_file(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def load_policy_from_file(self, *args, **kwargs):
         raise NotImplementedError()
 
     def close(self, *args, **kwargs):
