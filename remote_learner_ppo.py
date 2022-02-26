@@ -53,12 +53,12 @@ def main():
     for step in range(args.env_steps):
         action, lprob = agent.sample_action((image, propri), step)
         
-        (reward, (next_image, next_propri), done, lprob) = agent.receive_sample_from_onboard()
+        (reward, (next_image, next_propri), done, lprob, kwargs) = agent.receive_sample_from_onboard()
         
         episode_reward += reward
         episode_step += 1
 
-        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done, lprob)
+        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done, lprob, **kwargs)
 
         if done or (episode_step == episode_length_step): # set time out here
             stat = agent.update_policy(done, next_image, next_propri)

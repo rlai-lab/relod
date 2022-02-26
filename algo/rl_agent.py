@@ -23,7 +23,7 @@ class BaseWrapper:
     def sample_action(self, ob, *args, **kwargs):
         raise NotImplementedError()
 
-    def push_sample(self, *args):
+    def push_sample(self, *args, **kwargs):
         raise NotImplementedError()
 
     def update_policy(self, *args, **kwargs):
