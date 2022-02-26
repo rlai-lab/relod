@@ -96,5 +96,11 @@ class BasePerformer:
     def sample_action(self, ob, *args, **kwargs):
         raise NotImplementedError()
 
+    def save_policy_to_file(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def load_policy_from_file(self, *args, **kwargs):
+        raise NotImplementedError()
+
     def close(self, *args, **kwargs):
         raise NotImplementedError()

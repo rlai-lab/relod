@@ -90,10 +90,6 @@ def main():
         
         (image, propri) = (next_image, next_propri)
 
-        if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(step)
-
-    agent.save_policy_to_file(step)
     agent.close()
     print('Train finished')
 
