@@ -64,8 +64,7 @@ class OnboardWrapper(BaseWrapper):
             sample = self._sample_queue.get()
             self.send_data(sample)
             
-            if len(sample) == 3:
-                self._sent_samples.value += 1
+            self._sent_samples.value += 1
 
     def _receive_remote_policy_p(self): # run in a child process
         print('Receive process started.')
@@ -107,13 +106,13 @@ class OnboardWrapper(BaseWrapper):
         else:
             raise NotImplementedError('send_init_ob: {} mode is not supported'.format(self._mode))
     
-    def push_sample(self, ob, action, reward, next_ob, done, *args):
+    def push_sample(self, ob, action, reward, next_ob, done, *args, **kwargs):
         if self._mode == MODE.LOCAL_ONLY:
-            self._learner.push_sample(ob, action, reward, next_ob, done, *args)
+            self._learner.push_sample(ob, action, reward, next_ob, done, *args, **kwargs)
         elif self._mode == MODE.REMOTE_ONLY:
-            self.send_data((reward, next_ob, done, *args))
+            self.send_data((reward, next_ob, done, *args, kwargs))
         elif self._mode == MODE.ONBOARD_REMOTE:
-            self._sample_queue.put_nowait((reward, next_ob, done, *args)) # fatal error if sample queue is full
+            self._sample_queue.put_nowait((reward, next_ob, done, *args, kwargs)) # fatal error if sample queue is full
         else:
             raise NotImplementedError('push_sample: {} mode is not supported'.format(self._mode))
 

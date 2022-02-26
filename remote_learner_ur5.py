@@ -89,12 +89,12 @@ def main():
     for step in range(args.env_steps + args.init_steps):
         action = agent.sample_action((image, propri), step)
         
-        (reward, (next_image, next_propri), done) = agent.receive_sample_from_onboard()
+        (reward, (next_image, next_propri), done, kwargs) = agent.receive_sample_from_onboard()
         
         episode_reward += reward
         episode_step += 1
 
-        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
+        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done, **kwargs)
 
         if done or (episode_step == episode_length_step): # set time out here
             L.log('train/duration', time.time() - start_time, step)
