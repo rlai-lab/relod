@@ -65,12 +65,12 @@ def parse_args():
     parser.add_argument('--l2_reg', default=1e-4, type=float, help="L2 regularization coefficient")
     parser.add_argument('--bootstrap_terminal', default=1, type=int, help="Bootstrap on terminal state")
     # agent
-    parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
+    parser.add_argument('--remote_ip', default='192.168.0.102', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='r', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
-    parser.add_argument('--seed', default=1, type=int)
+    parser.add_argument('--seed', default=4, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
@@ -145,7 +145,8 @@ def main():
     agent.apply_remote_policy(block=True)
     
     # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
-    go = input('press any key to go')
+    #go = input('press any key to go')
+    time.sleep(10)
     episode, episode_reward, episode_step, done = 0, 0, 0, True
 
     obs = torch.as_tensor(obs.astype(np.float32))[None, :, :, :]
@@ -175,8 +176,7 @@ def main():
                 mt.reset_plot()
             
             if mode == MODE.ONBOARD_REMOTE:
-                cmd = agent.recv_cmd()
-                if cmd == 'new policy':
+                if agent.recv_cmd() == 'new policy':
                     agent.apply_remote_policy(True)
 
             next_obs, next_state = env.reset()
@@ -197,5 +197,5 @@ def main():
     print('Train finished')
 
 if __name__ == '__main__':
-    torch.multiprocessing.set_start_method('spawn')
+    # torch.multiprocessing.set_start_method('spawn')
     main()
