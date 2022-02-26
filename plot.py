@@ -4,7 +4,7 @@ import statistics as stat
 import pandas
 from os import walk
 
-root = 'results/'
+root = 'curiosity/'
 _, exps, _ = next(walk(root))
 plot_intervals = {
                   "roomba local remote visual reacher": 1600,
@@ -17,7 +17,7 @@ plot_intervals = {
 for exp in exps:
     df = pandas.DataFrame(columns=["step", "avg_ret", "seed"])
     _, runs, _ = next(walk(root+exp))
-    plot_interval = 1600
+    plot_interval = 5000
     for run in runs:
         if run == 'plots':
             continue
