@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument('--setup', default='Visual-UR5')
     parser.add_argument('--env_name', default='Visual-UR5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=2, type=int)
+    parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='reaching', type=str)
@@ -77,7 +77,7 @@ def parse_args():
     # parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=0, type=int)
