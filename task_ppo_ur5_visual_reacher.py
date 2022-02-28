@@ -65,12 +65,12 @@ def parse_args():
     parser.add_argument('--l2_reg', default=1e-4, type=float, help="L2 regularization coefficient")
     parser.add_argument('--bootstrap_terminal', default=1, type=int, help="Bootstrap on terminal state")
     # agent
-    parser.add_argument('--remote_ip', default='192.168.0.102', type=str)
+    parser.add_argument('--remote_ip', default='192.168.0.100', type=str)
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='r', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
-    parser.add_argument('--seed', default=4, type=int)
+    parser.add_argument('--seed', default=2, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
