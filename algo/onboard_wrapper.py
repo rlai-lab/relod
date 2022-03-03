@@ -54,8 +54,10 @@ class OnboardWrapper(BaseWrapper):
             self._send_started_event.wait()
             self._receive_started_event.wait()
 
-        if self._mode == MODE.LOCAL_ONLY:
+        elif self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             pass
+        else:
+            raise NotImplementedError('init: {} mode is not supported'.format(self._mode))
 
     def _send_sample_p(self):
         print('Send process started.')
@@ -79,7 +81,7 @@ class OnboardWrapper(BaseWrapper):
                 self._dropped_policies.value += 1
 
     def init_performer(self, performer_class: BasePerformer, *args, **kwargs):
-        if self._mode in [MODE.LOCAL_ONLY, MODE.ONBOARD_REMOTE]:
+        if self._mode in [MODE.LOCAL_ONLY, MODE.ONBOARD_REMOTE, MODE.EVALUATION]:
             self._performer = performer_class(*args, **kwargs)
         elif self._mode == MODE.REMOTE_ONLY:
             pass
@@ -89,7 +91,7 @@ class OnboardWrapper(BaseWrapper):
     def init_learner(self, learner_class: BaseLearner, *args, **kwargs):
         if self._mode == MODE.LOCAL_ONLY:
             self._learner = learner_class(*args, **kwargs)
-        elif self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
+        elif self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY, MODE.EVALUATION]:
             pass
         else:
             raise NotImplementedError('init_learner: {} mode is not supported'.format(self._mode))
@@ -101,7 +103,7 @@ class OnboardWrapper(BaseWrapper):
         elif self._mode == MODE.ONBOARD_REMOTE:
             assert self.recv_cmd() == 'wait for new episode'
             self._sample_queue.put_nowait(ob) # fatal error if sample queue is full
-        elif self._mode == MODE.LOCAL_ONLY:
+        elif self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             pass
         else:
             raise NotImplementedError('send_init_ob: {} mode is not supported'.format(self._mode))
@@ -113,17 +115,18 @@ class OnboardWrapper(BaseWrapper):
             self.send_data((reward, next_ob, done, *args, kwargs))
         elif self._mode == MODE.ONBOARD_REMOTE:
             self._sample_queue.put_nowait((reward, next_ob, done, *args, kwargs)) # fatal error if sample queue is full
+        elif self._mode == MODE.EVALUATION:
+            pass
         else:
             raise NotImplementedError('push_sample: {} mode is not supported'.format(self._mode))
 
     def sample_action(self, ob, *args, **kwargs):
         if self._mode == MODE.REMOTE_ONLY:
             action = self.recv_data()
-        elif self._mode == MODE.ONBOARD_REMOTE:
+        elif self._mode in [MODE.ONBOARD_REMOTE, MODE.LOCAL_ONLY, MODE.EVALUATION]:
             action = self._performer.sample_action(ob, *args, **kwargs)
-            self._sample_queue.put_nowait(action)
-        elif self._mode == MODE.LOCAL_ONLY:
-            action = self._performer.sample_action(ob, *args, **kwargs)
+            if self._mode == MODE.ONBOARD_REMOTE:
+                self._sample_queue.put_nowait(action)
         else:
             raise NotImplementedError('sample_action: {} mode is not supported'.format(self._mode))
         
@@ -138,15 +141,16 @@ class OnboardWrapper(BaseWrapper):
             except queue.Empty:
                 pass
 
-        elif self._mode in [MODE.REMOTE_ONLY, MODE.LOCAL_ONLY]:
+        elif self._mode in [MODE.REMOTE_ONLY, MODE.LOCAL_ONLY, MODE.EVALUATION]:
             pass
         else:
             raise NotImplementedError('recv_policy: {} mode is not supported'.format(self._mode))
 
     def update_policy(self, *args, **kwargs):
-        if self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
+        if self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY, MODE.EVALUATION]:
             if self._mode == MODE.ONBOARD_REMOTE:
                 self.apply_remote_policy()
+
             return None
         elif self._mode == MODE.LOCAL_ONLY:
             return self._learner.update_policy(*args, **kwargs)
@@ -154,17 +158,17 @@ class OnboardWrapper(BaseWrapper):
             raise NotImplementedError('update_policy: {} mode is not supported'.format(self._mode))
 
     def save_policy_to_file(self, *args, **kwargs):
-        if self._mode in [MODE.LOCAL_ONLY, MODE.ONBOARD_REMOTE]:
+        if self._mode == MODE.LOCAL_ONLY:
             self._performer.save_policy_to_file(*args, **kwargs)
-        elif self._mode == MODE.REMOTE_ONLY:
+        elif self._mode in [MODE.REMOTE_ONLY, MODE.EVALUATION, MODE.ONBOARD_REMOTE]:
             pass
         else:
             raise NotImplementedError('save_policy_to_file: {} mode is not supported'.format(self._mode))
     
     def load_policy_from_file(self, *args, **kwargs):
-        if self._mode in [MODE.LOCAL_ONLY, MODE.ONBOARD_REMOTE]:
+        if self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             self._performer.load_policy_from_file(*args, **kwargs)
-        elif self._mode == MODE.REMOTE_ONLY:
+        elif self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
             pass
         else:
             raise NotImplementedError('load_policy_to_file: {} mode is not supported'.format(self._mode))
@@ -191,9 +195,10 @@ class OnboardWrapper(BaseWrapper):
             self._cmd_sock.close()
             self._data_sock.close()
             
-        elif self._mode == MODE.LOCAL_ONLY:
+        elif self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             self._performer.close(*args, **kwargs)
-            self._learner.close(*args, **kwargs)
+            if self._mode == MODE.LOCAL_ONLY:
+                self._learner.close(*args, **kwargs)
         else:
             raise NotImplementedError('close: {} mode is not supported'.format(self._mode))
 

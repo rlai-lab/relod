@@ -4,6 +4,7 @@ class MODE:
     LOCAL_ONLY = 'local only'
     REMOTE_ONLY = 'remote only'
     ONBOARD_REMOTE = 'onboard remote'
+    EVALUATION = 'evaluation'
 
 def recv_message(client_sock):
     bytes_to_recv = 4 # recieve message length first

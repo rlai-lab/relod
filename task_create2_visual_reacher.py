@@ -13,6 +13,7 @@ from senseact.utils import NormalizedEnv
 from envs.create2_visual_reacher.env import Create2VisualReacherEnv
 
 import numpy as np
+import cv2
 
 config = {
     'conv': [
@@ -71,7 +72,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.103', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -93,6 +94,8 @@ def main():
         mode = MODE.LOCAL_ONLY
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
+    elif args.mode == 'e':
+        mode = MODE.EVALUATION
     else:
         raise  NotImplementedError()
 
@@ -115,10 +118,12 @@ def main():
 
     utils.make_dir(args.work_dir)
 
-    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-    args.model_dir = model_dir
+    args.model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
     if mode == MODE.LOCAL_ONLY:
         L = Logger(args.work_dir, use_tb=args.save_tb)
+
+    if mode == MODE.PERFORMANCE:
+        args.image_dir = utils.make_dir(os.path.join(args.work_dir, 'images'))
     
     if not 'conv' in config:
         image_shape = (0, 0, 0)
@@ -152,6 +157,8 @@ def main():
     # sync initial weights with remote
     agent.apply_remote_policy(block=True)
 
+    agent.load_policy_from_file(args.mode_dir, args.load_model)
+
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     (image, propri) = env.reset()
 
@@ -163,6 +170,11 @@ def main():
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
         action = agent.sample_action((image, propri), step)
+
+        if mode == MODE.EVALUATION: # save the image for demostration
+            image = np.transpose(image, [1, 2, 0])
+            image = image[:,:,0:3]
+            cv2.imwrite(args.image_dir+'/'+str(step)+'.png', image)
 
         # step in the environment
         (next_image, next_propri), reward, done, _ = env.step(action)
@@ -200,10 +212,10 @@ def main():
         propri = next_propri
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(step)
+            agent.save_policy_to_file(args.model_dir, step)
 
     if args.save_model:
-        agent.save_policy_to_file(step)
+        agent.save_policy_to_file(args.model_dir, step)
 
     # Clean up
     agent.close()

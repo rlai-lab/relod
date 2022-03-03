@@ -77,7 +77,7 @@ def parse_args():
     # parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=0, type=int)
@@ -104,6 +104,8 @@ def main():
         mt.reset_plot()
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
+    elif args.mode == 'e':
+        mode = MODE.EVALUATION
     else:
         raise  NotImplementedError()
 
@@ -199,10 +201,10 @@ def main():
         state = next_state
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(step)
+            agent.save_policy_to_file(args.model_dir, step)
 
     if args.save_model:
-        agent.save_policy_to_file(step)
+        agent.save_policy_to_file(args.model_dir, step)
         
     # Clean up
     agent.close()
