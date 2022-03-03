@@ -72,14 +72,14 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.104', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=-1, type=int)
+    parser.add_argument('--load_model', default=160999, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     args = parser.parse_args()
@@ -162,6 +162,9 @@ def main():
         agent.load_policy_from_file(args.model_dir, args.load_model)
             
     episode, episode_reward, episode_step, done = 0, 0, 0, True
+    if mode == MODE.EVALUATION:
+        episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
+    
     (image, propri) = env.reset()
 
     # First inference took a while (~1 min), do it before the agent-env interaction loop
@@ -171,9 +174,15 @@ def main():
     if mode == MODE.EVALUATION:
         args.init_steps = 0
     
+    go = input('press anykey to go')
     agent.send_init_ob((image, propri))
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
+        if mode == MODE.EVALUATION:
+            image_to_save = np.transpose(image, [1, 2, 0])
+            image_to_save = image_to_save[:,:,0:3]
+            cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
+
         action = agent.sample_action((image, propri), step)
 
         # step in the environment
@@ -198,6 +207,8 @@ def main():
             episode_reward = 0
             episode_step = 0
             episode += 1
+            if mode == MODE.EVALUATION:
+                episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
             start_time = time.time()
         
         stat = agent.update_policy(step)
