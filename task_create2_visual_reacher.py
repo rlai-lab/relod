@@ -45,7 +45,7 @@ def parse_args():
     parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--min_target_size', default=0.12, type=float)
     # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=10000, type=int)
+    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
@@ -70,16 +70,16 @@ def parse_args():
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     # agent
-    parser.add_argument('--remote_ip', default='192.168.0.103', type=str)
+    parser.add_argument('--remote_ip', default='192.168.0.104', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--seed', default=4, type=int)
+    parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=159999, type=int)
+    parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     args = parser.parse_args()
@@ -176,11 +176,6 @@ def main():
 
     for step in range(args.env_steps + args.init_steps):
         action = agent.sample_action((image, propri), step)
-
-        if mode == MODE.EVALUATION: # save the image for demostration
-            image = np.transpose(image, [1, 2, 0])
-            image = image[:,:,0:3]
-            cv2.imwrite(args.image_dir+'/'+str(step)+'.png', image)
 
         # step in the environment
         (next_image, next_propri), reward, done, _ = env.step(action)
