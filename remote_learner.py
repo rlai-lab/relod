@@ -55,9 +55,9 @@ def main():
     (image, propri) = agent.receive_init_ob()
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        image = np.transpose(image, [1, 2, 0])
-        image = image[:,:,0:3]
-        cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image)
+        image_to_save = np.transpose(image, [1, 2, 0])
+        image_to_save = image_to_save[:,:,0:3]
+        cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
 
         action = agent.sample_action((image, propri), step)
         
@@ -90,12 +90,14 @@ def main():
         (image, propri) = (next_image, next_propri)
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(step)
+            agent.save_policy_to_file(args.model_dir, step)
         
         if step > args.init_steps and (step+1) % args.update_every == 0:
             agent.send_policy()
 
-    agent.save_policy_to_file(step)
+    if args.save_model:
+        agent.save_policy_to_file(args.model_dir, step)
+
     agent.learner.pause_update()
     agent.close()
     print('Train finished')
