@@ -167,13 +167,12 @@ def main():
     # First inference took a while (~1 min), do it before the agent-env interaction loop
     if mode != MODE.REMOTE_ONLY:
         agent.performer.sample_action((image, propri), args.init_steps+1)
-    
-    agent.send_init_ob((image, propri))
-    start_time = time.time()
 
     if mode == MODE.EVALUATION:
         args.init_steps = 0
-
+    
+    agent.send_init_ob((image, propri))
+    start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
         action = agent.sample_action((image, propri), step)
 
