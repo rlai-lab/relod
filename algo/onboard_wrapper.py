@@ -138,6 +138,7 @@ class OnboardWrapper(BaseWrapper):
                 policy = self._policy_queue.get(block=block)
                 self.performer.load_policy(policy)
                 self._applied_policies += 1
+                print('applied update:', self._applied_policies)
             except queue.Empty:
                 pass
 
@@ -150,7 +151,6 @@ class OnboardWrapper(BaseWrapper):
         if self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY, MODE.EVALUATION]:
             if self._mode == MODE.ONBOARD_REMOTE:
                 self.apply_remote_policy()
-                print('applied update:', self._applied_policies)
 
             return None
         elif self._mode == MODE.LOCAL_ONLY:
