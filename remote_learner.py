@@ -25,6 +25,12 @@ def main():
 
     agent = RemoteWrapper(port=server_args.port)
     args = agent.recv_data()
+
+    utils.make_dir(args.work_dir)
+
+    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
+    args.model_dir = model_dir
+
     agent.init_performer(SACRADPerformer, args)
     agent.init_learner(SACRADLearner, args, agent.performer)
 
@@ -32,11 +38,6 @@ def main():
     agent.send_policy()
 
     utils.set_seed_everywhere(args.seed)
-
-    utils.make_dir(args.work_dir)
-
-    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-    args.model_dir = model_dir
 
     if server_args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
