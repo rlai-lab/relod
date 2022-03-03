@@ -79,7 +79,7 @@ def parse_args():
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=160999, type=int)
+    parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     args = parser.parse_args()
@@ -171,7 +171,7 @@ def main():
     if mode != MODE.REMOTE_ONLY:
         agent.performer.sample_action((image, propri), args.init_steps+1)
 
-    if mode == MODE.EVALUATION:
+    if mode == MODE.EVALUATION and args.load_model > -1:
         args.init_steps = 0
     
     go = input('press anykey to go')
