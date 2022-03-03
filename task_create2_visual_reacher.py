@@ -79,7 +79,7 @@ def parse_args():
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=-1, type=int)
+    parser.add_argument('--load_model', default=159999, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     args = parser.parse_args()
@@ -157,8 +157,9 @@ def main():
     # sync initial weights with remote
     agent.apply_remote_policy(block=True)
 
-    agent.load_policy_from_file(args.mode_dir, args.load_model)
-
+    if args.load_model > -1:
+        agent.load_policy_from_file(args.model_dir, args.load_model)
+            
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     (image, propri) = env.reset()
 
