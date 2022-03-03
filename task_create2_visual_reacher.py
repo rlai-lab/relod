@@ -50,10 +50,10 @@ def parse_args():
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
     parser.add_argument('--env_steps', default=160000, type=int)
-    parser.add_argument('--batch_size', default=32, type=int)
-    parser.add_argument('--async_mode', default=False, action='store_true')
+    parser.add_argument('--batch_size', default=256, type=int)
+    parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
-    parser.add_argument('--update_every', default=1, type=int)
+    parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
     # critic
     parser.add_argument('--critic_lr', default=1e-3, type=float)
@@ -74,7 +74,7 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--seed', default=0, type=int)
+    parser.add_argument('--seed', default=4, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
@@ -115,15 +115,16 @@ def main():
                      f'dt={args.dt}_' \
                      f'seed={args.seed}_' \
                      f'target_size={args.min_target_size}/'
+    args.model_dir = args.work_dir+'model'
+    args.image_dir = args.work_dir+'image'
 
-    utils.make_dir(args.work_dir)
-
-    args.model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
     if mode == MODE.LOCAL_ONLY:
+        utils.make_dir(args.work_dir)
+        utils.make_dir(args.model_dir)
         L = Logger(args.work_dir, use_tb=args.save_tb)
 
-    if mode == MODE.PERFORMANCE:
-        args.image_dir = utils.make_dir(os.path.join(args.work_dir, 'images'))
+    if mode == MODE.EVALUATION:
+        utils.make_dir(args.image_dir)
     
     if not 'conv' in config:
         image_shape = (0, 0, 0)
@@ -169,6 +170,10 @@ def main():
     
     agent.send_init_ob((image, propri))
     start_time = time.time()
+
+    if mode == MODE.EVALUATION:
+        args.init_steps = 0
+
     for step in range(args.env_steps + args.init_steps):
         action = agent.sample_action((image, propri), step)
 
@@ -193,11 +198,6 @@ def main():
                 L.log('train/episode_reward', episode_reward, step)
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
-                env.step(np.array([0, 0]))
-                stat = agent.update_policy(step)
-                if stat is not None:
-                    for k, v in stat.items():
-                        L.log(k, v, step)
 
             (next_image, next_propri) = env.reset()
             agent.send_init_ob((next_image, next_propri))
@@ -206,8 +206,10 @@ def main():
             episode += 1
             start_time = time.time()
         
-        if mode == MODE.ONBOARD_REMOTE:
-            agent.update_policy(step)
+        stat = agent.update_policy(step)
+        if stat is not None:
+            for k, v in stat.items():
+                L.log(k, v, step)
         
         image = next_image
         propri = next_propri
