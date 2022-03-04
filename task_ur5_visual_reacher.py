@@ -88,7 +88,7 @@ def parse_args():
     parser.add_argument('--save_model', default=True, action='store_true')
     #parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=100999, type=int)
+    parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
 
@@ -121,7 +121,6 @@ def main():
                      f'dim={args.image_width}*{args.image_height}_{args.seed}/'
 
     args.model_dir = args.work_dir+'model'
-    args.image_dir = args.work_dir+'image'
 
     if mode == MODE.LOCAL_ONLY:
         utils.make_dir(args.work_dir)
@@ -129,6 +128,7 @@ def main():
         L = Logger(args.work_dir, use_tb=args.save_tb)
 
     if mode == MODE.EVALUATION:
+        args.image_dir = args.work_dir+'image'
         utils.make_dir(args.image_dir)
 
     env = UR5Wrapper(
@@ -168,7 +168,7 @@ def main():
         agent.load_policy_from_file(args.model_dir, args.load_model)
     
     # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
-    go = input('press any key to go')
+    time.sleep(10)
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     if mode == MODE.EVALUATION:
         episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
@@ -176,7 +176,7 @@ def main():
     if mode != MODE.REMOTE_ONLY:
         agent.performer.sample_action((obs, state), args.init_steps+1)
 
-    if mode == MODE.EVALUATION:
+    if mode == MODE.EVALUATION and args.load_model > -1:
         args.init_steps = 0
     
     agent.send_init_ob((obs, state))
