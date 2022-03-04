@@ -58,6 +58,14 @@ class PPORADPerformer(BasePerformer):
         self._actor.load_state_dict(actor_weights)
         self._critic.load_state_dict(critic_weights)
 
+    def load_policy_from_file(self, model_dir, step):
+        self._actor.load_state_dict(
+            torch.load('%s/actor_%s.pt' % (model_dir, step))
+        )
+        self._critic.load_state_dict(
+            torch.load('%s/critic_%s.pt' % (model_dir, step))
+        )
+
     def close(self):
         del self
 
@@ -166,6 +174,17 @@ class PPORADLearner(BaseLearner):
     def push_sample(self, ob, action, reward, next_ob, done, lprob):
         (image, propri) = ob
         self.buffer.push(image, propri, action, reward, done, lprob)
+
+    def save_policy_to_file(self, model_dir, step):
+        torch.save(
+            self._actor.state_dict(), '%s/actor_%s.pt' % (model_dir, step)
+        )
+        torch.save(
+            self._critic.state_dict(), '%s/critic_%s.pt' % (model_dir, step)
+        )
+
+    def load_policy_from_file(self, model_dir, step):
+        self._performer.load_policy_from_file(model_dir, step)
 
     def update_policy(self, done, next_imgs, next_propris):
         if len(self.buffer) >= self.batch_size and done:

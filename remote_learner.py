@@ -32,7 +32,6 @@ def main():
 
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
     args.model_dir = model_dir
-    utils.make_dir(args.image_dir)
 
     agent.init_performer(SACRADPerformer, args)
     agent.init_learner(SACRADLearner, args, agent.performer)
@@ -51,14 +50,9 @@ def main():
 
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     episode_length_step = int(args.episode_length_time / args.dt)
-    episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
     (image, propri) = agent.receive_init_ob()
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        image_to_save = np.transpose(image, [1, 2, 0])
-        image_to_save = image_to_save[:,:,0:3]
-        cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
-
         action = agent.sample_action((image, propri), step)
         
         (reward, (next_image, next_propri), done, kwargs) = agent.receive_sample_from_onboard()
@@ -79,7 +73,6 @@ def main():
             episode_step = 0
             episode += 1
             L.log('train/episode', episode, step)
-            episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
             start_time = time.time()
             
         stat = agent.update_policy(step)

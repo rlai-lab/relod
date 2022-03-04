@@ -160,7 +160,7 @@ class OnboardWrapper(BaseWrapper):
 
     def save_policy_to_file(self, *args, **kwargs):
         if self._mode == MODE.LOCAL_ONLY:
-            self._performer.save_policy_to_file(*args, **kwargs)
+            self._learner.save_policy_to_file(*args, **kwargs)
         elif self._mode in [MODE.REMOTE_ONLY, MODE.EVALUATION, MODE.ONBOARD_REMOTE]:
             pass
         else:

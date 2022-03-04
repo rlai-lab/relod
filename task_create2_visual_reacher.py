@@ -116,7 +116,6 @@ def main():
                      f'seed={args.seed}_' \
                      f'target_size={args.min_target_size}/'
     args.model_dir = args.work_dir+'model'
-    args.image_dir = args.work_dir+'image'
 
     if mode == MODE.LOCAL_ONLY:
         utils.make_dir(args.work_dir)
@@ -124,6 +123,7 @@ def main():
         L = Logger(args.work_dir, use_tb=args.save_tb)
 
     if mode == MODE.EVALUATION:
+        args.image_dir = args.work_dir+'image'
         utils.make_dir(args.image_dir)
     
     if not 'conv' in config:
