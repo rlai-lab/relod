@@ -68,7 +68,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.100', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=2, type=int)
@@ -77,7 +77,7 @@ def parse_args():
     parser.add_argument('--save_model', default=True, action='store_true')
     #parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=-1, type=int)
+    parser.add_argument('--load_model', default=149999, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
 
@@ -168,7 +168,8 @@ def main():
     start_time = time.time()
     for step in range(args.env_steps):
         if mode == MODE.EVALUATION:
-            image_to_save = np.transpose(obs, [1, 2, 0])
+            image = np.squeeze(obs.cpu().numpy())
+            image_to_save = np.transpose(image, [1, 2, 0])
             image_to_save = image_to_save[:,:,0:3]
             cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
 
