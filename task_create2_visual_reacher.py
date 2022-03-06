@@ -13,6 +13,7 @@ from senseact.utils import NormalizedEnv
 from envs.create2_visual_reacher.env import Create2VisualReacherEnv
 
 import numpy as np
+import cv2
 
 config = {
     'conv': [
@@ -44,15 +45,15 @@ def parse_args():
     parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--min_target_size', default=0.12, type=float)
     # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=10000, type=int)
+    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
     parser.add_argument('--env_steps', default=160000, type=int)
-    parser.add_argument('--batch_size', default=32, type=int)
-    parser.add_argument('--async_mode', default=False, action='store_true')
+    parser.add_argument('--batch_size', default=256, type=int)
+    parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
-    parser.add_argument('--update_every', default=1, type=int)
+    parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
     # critic
     parser.add_argument('--critic_lr', default=1e-3, type=float)
@@ -69,9 +70,9 @@ def parse_args():
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     # agent
-    parser.add_argument('--remote_ip', default='192.168.0.103', type=str)
+    parser.add_argument('--remote_ip', default='192.168.0.104', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -93,6 +94,8 @@ def main():
         mode = MODE.LOCAL_ONLY
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
+    elif args.mode == 'e':
+        mode = MODE.EVALUATION
     else:
         raise  NotImplementedError()
 
@@ -112,13 +115,16 @@ def main():
                      f'dt={args.dt}_' \
                      f'seed={args.seed}_' \
                      f'target_size={args.min_target_size}/'
+    args.model_dir = args.work_dir+'model'
 
-    utils.make_dir(args.work_dir)
-
-    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-    args.model_dir = model_dir
     if mode == MODE.LOCAL_ONLY:
+        utils.make_dir(args.work_dir)
+        utils.make_dir(args.model_dir)
         L = Logger(args.work_dir, use_tb=args.save_tb)
+
+    if mode == MODE.EVALUATION:
+        args.image_dir = args.work_dir+'image'
+        utils.make_dir(args.image_dir)
     
     if not 'conv' in config:
         image_shape = (0, 0, 0)
@@ -152,16 +158,31 @@ def main():
     # sync initial weights with remote
     agent.apply_remote_policy(block=True)
 
+    if args.load_model > -1:
+        agent.load_policy_from_file(args.model_dir, args.load_model)
+            
     episode, episode_reward, episode_step, done = 0, 0, 0, True
+    if mode == MODE.EVALUATION:
+        episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
+    
     (image, propri) = env.reset()
 
     # First inference took a while (~1 min), do it before the agent-env interaction loop
     if mode != MODE.REMOTE_ONLY:
         agent.performer.sample_action((image, propri), args.init_steps+1)
+
+    if mode == MODE.EVALUATION and args.load_model > -1:
+        args.init_steps = 0
     
+    go = input('press anykey to go')
     agent.send_init_ob((image, propri))
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
+        if mode == MODE.EVALUATION:
+            image_to_save = np.transpose(image, [1, 2, 0])
+            image_to_save = image_to_save[:,:,0:3]
+            cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
+
         action = agent.sample_action((image, propri), step)
 
         # step in the environment
@@ -180,30 +201,29 @@ def main():
                 L.log('train/episode_reward', episode_reward, step)
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
-                env.step(np.array([0, 0]))
-                stat = agent.update_policy(step)
-                if stat is not None:
-                    for k, v in stat.items():
-                        L.log(k, v, step)
 
             (next_image, next_propri) = env.reset()
             agent.send_init_ob((next_image, next_propri))
             episode_reward = 0
             episode_step = 0
             episode += 1
+            if mode == MODE.EVALUATION:
+                episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
             start_time = time.time()
         
-        if mode == MODE.ONBOARD_REMOTE:
-            agent.update_policy(step)
+        stat = agent.update_policy(step)
+        if stat is not None:
+            for k, v in stat.items():
+                L.log(k, v, step)
         
         image = next_image
         propri = next_propri
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(step)
+            agent.save_policy_to_file(args.model_dir, step)
 
     if args.save_model:
-        agent.save_policy_to_file(step)
+        agent.save_policy_to_file(args.model_dir, step)
 
     # Clean up
     agent.close()

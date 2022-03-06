@@ -12,6 +12,7 @@ from envs.visual_ur5_reacher.configs.ur5_config import config
 from envs.visual_ur5_reacher.ur5_wrapper import UR5Wrapper
 from remote_learner_ur5 import MonitorTarget
 import numpy as np
+import cv2
 
 config = {
     'conv': [
@@ -38,7 +39,7 @@ def parse_args():
     parser.add_argument('--setup', default='Visual-UR5')
     parser.add_argument('--env_name', default='Visual-UR5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=0, type=int)
+    parser.add_argument('--camera_id', default=1, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='reaching', type=str)
@@ -67,7 +68,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.100', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='r', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=2, type=int)
@@ -76,7 +77,7 @@ def parse_args():
     parser.add_argument('--save_model', default=True, action='store_true')
     #parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=-1, type=int)
+    parser.add_argument('--load_model', default=149999, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
 
@@ -94,6 +95,10 @@ def main():
         mt.reset_plot()
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
+    elif args.mode == 'e':
+        mode = MODE.EVALUATION
+        mt = MonitorTarget()
+        mt.reset_plot()
     else:
         raise  NotImplementedError()
 
@@ -104,12 +109,16 @@ def main():
                      f'dt={args.dt}_bs={args.batch_size}_' \
                      f'dim={args.image_width}*{args.image_height}_{args.seed}/'
 
-    utils.make_dir(args.work_dir)
+    args.model_dir = args.work_dir+'model'
 
-    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-    args.model_dir = model_dir
     if mode == MODE.LOCAL_ONLY:
+        utils.make_dir(args.work_dir)
+        utils.make_dir(args.model_dir)
         L = Logger(args.work_dir, use_tb=args.save_tb)
+
+    if mode == MODE.EVALUATION:
+        args.image_dir = args.work_dir+'image'
+        utils.make_dir(args.image_dir)
 
     env = UR5Wrapper(
         setup = args.setup,
@@ -143,17 +152,27 @@ def main():
 
     # sync initial weights with remote
     agent.apply_remote_policy(block=True)
+
+    if args.load_model > -1:
+        agent.load_policy_from_file(args.model_dir, args.load_model)
     
     # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
-    #go = input('press any key to go')
     time.sleep(10)
     episode, episode_reward, episode_step, done = 0, 0, 0, True
+    if mode == MODE.EVALUATION:
+        episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
 
     obs = torch.as_tensor(obs.astype(np.float32))[None, :, :, :]
     state = torch.as_tensor(state.astype(np.float32))[None, :]
     agent.send_init_ob((obs, state))
     start_time = time.time()
     for step in range(args.env_steps):
+        if mode == MODE.EVALUATION:
+            image = np.squeeze(obs.cpu().numpy())
+            image_to_save = np.transpose(image, [1, 2, 0])
+            image_to_save = image_to_save[:,:,0:3]
+            cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
+
         action, lprob = agent.sample_action((obs, state))
 
         # step in the environment
@@ -186,11 +205,20 @@ def main():
             episode_reward = 0
             episode_step = 0
             episode += 1
+            if mode == MODE.EVALUATION:
+                episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
+                mt.reset_plot()
             start_time = time.time()
         
         obs = next_obs
         state = next_state
-        
+
+        if args.save_model and (step+1) % args.save_model_freq == 0:
+            agent.save_policy_to_file(args.model_dir, step)
+    
+    if args.save_model:
+        agent.save_policy_to_file(args.model_dir, step)
+
     # Clean up
     agent.close()
     env.terminate()
