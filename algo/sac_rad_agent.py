@@ -39,20 +39,12 @@ class SACRADPerformer(BasePerformer):
         self._critic_target.train(is_training)
         self.is_training = is_training
 
-    def save_policy_to_file(self, step):
-        torch.save(
-            self._actor.state_dict(), '%s/actor_%s.pt' % (self._args.model_dir, step)
-        )
-        torch.save(
-            self._critic.state_dict(), '%s/critic_%s.pt' % (self._args.model_dir, step)
-        )
-
-    def load_policy_from_file(self):
+    def load_policy_from_file(self, model_dir, step):
         self._actor.load_state_dict(
-            torch.load('%s/actor_%s.pt' % (self._args.model_dir, self._args.load_model))
+            torch.load('%s/actor_%s.pt' % (model_dir, step))
         )
         self._critic.load_state_dict(
-            torch.load('%s/critic_%s.pt' % (self._args.model_dir, self._args.load_model))
+            torch.load('%s/critic_%s.pt' % (model_dir, step))
         )
 
     def load_policy(self, policy):
@@ -332,7 +324,18 @@ class SACRADLearner(BaseLearner):
     def resume_update(self):
         if self._args.async_mode:
             self._sample_queue.put('resume')
-            
+
+    def save_policy_to_file(self, model_dir, step):
+        torch.save(
+            self._actor.state_dict(), '%s/actor_%s.pt' % (model_dir, step)
+        )
+        torch.save(
+            self._critic.state_dict(), '%s/critic_%s.pt' % (model_dir, step)
+        )
+
+    def load_policy_from_file(self, model_dir, step):
+        self._performer.load_policy_from_file(model_dir, step)
+
     def close(self):
         if self._args.async_mode:
             self._replay_buffer_process.terminate()

@@ -6,6 +6,8 @@ from logger import Logger
 import time
 import utils
 import os
+import numpy as np
+import cv2
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -25,6 +27,12 @@ def main():
 
     agent = RemoteWrapper(port=server_args.port)
     args = agent.recv_data()
+
+    utils.make_dir(args.work_dir)
+
+    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
+    args.model_dir = model_dir
+
     agent.init_performer(SACRADPerformer, args)
     agent.init_learner(SACRADLearner, args, agent.performer)
 
@@ -32,11 +40,6 @@ def main():
     agent.send_policy()
 
     utils.set_seed_everywhere(args.seed)
-
-    utils.make_dir(args.work_dir)
-
-    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-    args.model_dir = model_dir
 
     if server_args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -80,12 +83,14 @@ def main():
         (image, propri) = (next_image, next_propri)
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(step)
+            agent.save_policy_to_file(args.model_dir, step)
         
         if step > args.init_steps and (step+1) % args.update_every == 0:
             agent.send_policy()
 
-    agent.save_policy_to_file(step)
+    if args.save_model:
+        agent.save_policy_to_file(args.model_dir, step)
+
     agent.learner.pause_update()
     agent.close()
     print('Train finished')
