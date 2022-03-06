@@ -301,20 +301,24 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         move_time = np.random.uniform(low=1, high=2)
         rotate_time = np.random.uniform(low=1, high=3)
         direction = np.random.choice((1, -1))
+
+        # rotate
+        self._write_opcode('drive_direct', *(150*direction, -150*direction))
+        time.sleep(rotate_time)
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
+        
+        # back
         self._write_opcode('drive_direct', *target_values)
+        time.sleep(move_time)
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
         '''
         rand_state_array_type, rand_state_array_size, rand_state_array = utils.get_random_state_array(
             self._rand_obj_.get_state()
         )
         np.copyto(self._shared_rstate_array_, np.frombuffer(rand_state_array, dtype=rand_state_array_type))
         '''
-        time.sleep(move_time)
-        self._write_opcode('drive', 0, 0)
-        time.sleep(0.1)
-        self._write_opcode('drive_direct', *(150*direction, -150*direction))
-        time.sleep(rotate_time)
-        self._write_opcode('drive', 0, 0)
-        time.sleep(0.1)
 
         # make sure in SAFE mode in case the random drive caused switch to PASSIVE, or
         # create2 stuck somewhere and require human reset (don't want an episode to start
