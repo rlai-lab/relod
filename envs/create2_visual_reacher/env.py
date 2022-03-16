@@ -297,13 +297,19 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
 
         # drive backward and rotate randomly
         logging.info("Moving Create2 into position.")
-        target_values = [-150, -150]
-        move_time = np.random.uniform(low=1, high=2)
-        rotate_time = np.random.uniform(low=1, high=3)
+        target_values = [-300, -300]
+        move_time = np.random.uniform(low=1, high=1.5)
+        rotate_time = np.random.uniform(low=0.5, high=1)
         direction = np.random.choice((1, -1))
+        
+        # back
+        self._write_opcode('drive_direct', *target_values)
+        time.sleep(move_time)
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
 
         # rotate
-        self._write_opcode('drive_direct', *(150*direction, -150*direction))
+        self._write_opcode('drive_direct', *(300*direction, -300*direction))
         time.sleep(rotate_time)
         self._write_opcode('drive', 0, 0)
         time.sleep(0.1)

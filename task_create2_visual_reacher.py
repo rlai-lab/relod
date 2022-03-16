@@ -49,7 +49,7 @@ def parse_args():
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--env_steps', default=160000, type=int)
+    parser.add_argument('--env_steps', default=300000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
@@ -70,7 +70,7 @@ def parse_args():
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     # agent
-    parser.add_argument('--remote_ip', default='192.168.0.104', type=str)
+    parser.add_argument('--remote_ip', default='192.168.0.103', type=str)
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
