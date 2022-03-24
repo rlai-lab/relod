@@ -16,10 +16,10 @@ from senseact.rtrl_base_env import RTRLBaseEnv
 from senseact.devices.create2.create2_communicator import Create2Communicator
 from senseact.envs.create2.create2_observation import Create2ObservationFactory
 from senseact.sharedbuffer import SharedBuffer
-from envs.create2_visual_reacher.depstech_camera_communicator import CameraCommunicator
+from depstech_camera_communicator import CameraCommunicator
 import cv2
 
-class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
+class Create2VisualDockerEnv(RTRLBaseEnv, gym.Env):
     """Create2 environment for training it drive forward.
     By default this environment observes the infrared character (binary state for detecting the dock),
     bump sensor, and last action.
@@ -29,7 +29,7 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
     """
 
     def __init__(self, episode_length_time=30, port='/dev/ttyUSB0', obs_history=1, dt=0.015, image_shape=(0, 0, 0),
-                 camera_id=0, min_target_size=0.1, **kwargs):
+                 camera_id=0, **kwargs):
         """Constructor of the environment.
         Args:
             episode_length_time: A float duration of an episode defined in seconds
@@ -46,7 +46,6 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         self._episode_length_step = int(episode_length_time / dt)
         self._internal_timing = 0.015
         self._hsv_mask = ((60, 0, 0), (80, 255, 255))
-        self._min_target_size = min_target_size
         self._min_battery = 1200
         self._max_battery = 1850
 
@@ -269,16 +268,16 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
                 time.sleep(0.01)
 
         sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
-        print('current charge:', sensor_window[-1][0]['battery charge'])
+        print('Current charge:', sensor_window[-1][0]['battery charge'])
         if sensor_window[-1][0]['battery charge'] <= self._min_battery:
-            print("Waiting for Create2 to be docked.")
-            if sensor_window[-1][0]['charging sources available'] <= 0:
-                self._write_opcode('drive_direct', 0, 0)
-                time.sleep(0.75)
-                self._write_opcode('seek_dock')
-                time.sleep(10)
-            self._wait_until_charged()
+            print('Recharging...')
+            self._seek_charger()
             sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
+            while sensor_window[-1][0]['battery charge'] < self._max_battery:
+                print('Current charge:', sensor_window[-1][0]['battery charge'])
+                logging.info("Create2 charging with current charge at {}.".format(sensor_window[-1]['battery charge']))
+                time.sleep(10)
+                sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
 
         # Always switch to SAFE mode to run an episode, so that Create2 will switch to PASSIVE on the
         # charger.  If the create2 is in any other mode on the charger, we will not be able to detect
@@ -287,38 +286,31 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         self._write_opcode('safe')
         time.sleep(0.1)
 
-        # after charging/docked, try to drive away from the dock if still on it
-        if sensor_window[-1][0]['charging sources available'] > 0:
-            logging.info("Undocking the Create2.")
-            self._write_opcode('drive_direct', -250, -250)
-            time.sleep(0.75)
-            self._write_opcode('drive_direct', 0, 0)
+        # go back to the charger if not on it
+        sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
+        if sensor_window[-1][0]['charging sources available'] <= 0:
+            # go to a random location
+            print("Moving Create2 into a random position.")
+            target_values = [-150, -150]
+            move_time = np.random.uniform(low=1, high=1.5)
+            
+            # back
+            self._write_opcode('drive_direct', *target_values)
+            time.sleep(move_time)
+            self._write_opcode('drive', 0, 0)
             time.sleep(0.1)
 
-        # drive backward and rotate randomly
-        logging.info("Moving Create2 into position.")
-        target_values = [-300, -300]
-        move_time = np.random.uniform(low=1, high=1.5)
-        rotate_time = np.random.uniform(low=0.5, high=1)
-        direction = np.random.choice((1, -1))
-        
-        # back
-        self._write_opcode('drive_direct', *target_values)
-        time.sleep(move_time)
-        self._write_opcode('drive', 0, 0)
-        time.sleep(0.1)
+            self._seek_charger()
 
-        # rotate
-        self._write_opcode('drive_direct', *(300*direction, -300*direction))
-        time.sleep(rotate_time)
-        self._write_opcode('drive', 0, 0)
-        time.sleep(0.1)
-        
-        # back
-        self._write_opcode('drive_direct', *target_values)
-        time.sleep(move_time)
-        self._write_opcode('drive', 0, 0)
-        time.sleep(0.1)
+        # after charging/docked, try to drive away from the dock if still on it
+        sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
+        if sensor_window[-1][0]['charging sources available'] > 0:
+            print("Undocking the Create2.")
+            self._write_opcode('drive_direct', -150, -150)
+            t = np.random.uniform(0, 1)
+            time.sleep(t)
+            self._write_opcode('drive_direct', 0, 0)
+            time.sleep(0.1)
 
         # make sure in SAFE mode in case the random drive caused switch to PASSIVE, or
         # create2 stuck somewhere and require human reset (don't want an episode to start
@@ -334,13 +326,27 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
             time.sleep(0.1)
             self._write_opcode('safe')
             time.sleep(0.2)
-
             sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
 
         # don't want to state during reset pollute the first sensation
-        time.sleep(2 * self._internal_timing)
+        time.sleep(1)
+        while sensor_window[-1][0]['charging sources available'] > 0:
+            time.sleep(1)
 
         print("Reset completed.")
+
+    def _seek_charger(self):
+        self._write_opcode('safe')
+        time.sleep(0.1)
+        print('Seeking charger')
+        self._write_opcode('seek_dock')
+        sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
+        while sensor_window[-1][0]['charging sources available'] <= 0:
+            time.sleep(1)
+            sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
+
+        self._write_opcode('safe')
+        time.sleep(0.1)
 
     def _check_done(self, env_done):
         """The required _check_done_ interface.
@@ -363,17 +369,25 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         bw = 0
         for p in range(int(self._dt / self._internal_timing)):
             bw |= sensor_window[-1 - p][0]['bumps and wheel drops']
-        '''
+        
         cl = 0
         for p in range(int(self._dt / self._internal_timing)):
             cl += sensor_window[-1 - p][0]['cliff left']
             cl += sensor_window[-1 - p][0]['cliff front left']
             cl += sensor_window[-1 - p][0]['cliff front right']
             cl += sensor_window[-1 - p][0]['cliff right']
-        '''
-        reward = 0
+
+        reward = 0.0
+        
+        charging_sources_available = sensor_window[-1][0]['charging sources available']
+
+        oi_mode = sensor_window[-1][0]['oi mode']
+        if oi_mode == 1 and charging_sources_available == 0 and cl == 0:
+            self._write_opcode('safe')
+
+        done = int(charging_sources_available > 0)
+
         # If wheel dropped, it's done and result in a big penalty.
-        done = 0
         if (bw >> 2) > 0:
             done = 1
             reward = -self._episode_length_step
@@ -383,19 +397,6 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
     def _calc_image_reward(self, sensor_window):
         reward = 0.0
         done = 0
-        image = sensor_window[-1]
-        image = image.reshape(self._image_shape[1], self._image_shape[2], 3)
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, np.array(self._hsv_mask[0]), np.array(self._hsv_mask[1]))
-        output = cv2.bitwise_and(image, image, mask=mask)
-        gray = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY) # original rgb2gray
-        _, blackAndWhiteImage = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
-        contours, _ = cv2.findContours(blackAndWhiteImage, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        cv2.fillPoly(blackAndWhiteImage, pts=contours, color=(255, 255, 255))
-        target_size = np.sum(blackAndWhiteImage/255.) / blackAndWhiteImage.size
-        #print('target size:', target_size)
-        if target_size >= self._min_target_size:
-            done = 1
 
         return reward, done
 
@@ -409,22 +410,6 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         # is not part of the action dimension
         self._actuator_comms['Create2'].actuator_buffer.write(
             np.concatenate(([create2_config.OPCODE_NAME_TO_CODE[opcode_name]], np.array(args).astype('i'))))
-
-    def _wait_until_charged(self):
-        """Waits until Create 2 is sufficiently charged."""
-        sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
-        logging.info("Need to charge .. {}.".format(sensor_window[-1]['battery charge']))
-        while sensor_window[-1][0]['battery charge'] < self._max_battery:
-            # move it out of the dock to avoid the weird non-responsive sleep mode (the non-responsive sleep
-            # mode can happen on any mode while on the dock, but only detectable when in PASSIVE mode)
-            self._write_opcode('safe')
-            time.sleep(0.1)
-            self._write_opcode('seek_dock')
-            time.sleep(0.1)
-            logging.info("Create2 charging with current charge at {}.".format(sensor_window[-1]['battery charge']))
-            time.sleep(10)
-            print('current charge:', sensor_window[-1][0]['battery charge'])
-            sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
 
     # ======== rllab compatible gym codes =========
 
@@ -448,16 +433,31 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         super().close()
 
 if __name__ == '__main__':
-    env = Create2VisualReacherEnv(episode_length_time=60, dt=0.045, image_shape=(9, 120, 160), camera_id=0, min_target_size=0.1)
-    env.start()
+    episode_length_step = int(30 / 0.045)
 
+    env = Create2VisualDockerEnv(episode_length_time=30, dt=0.045, image_shape=(9, 120, 160), camera_id=0)
+    env.start()
     env.reset()
-    for i in range(10000):
+
+    episode_step = 0
+    episode_ret = 0
+    episode = 0
+    for i in range(100000):
         a = env.action_space.sample()
-        (image, _), _, done, _ = env.step([0,0])
-        
+        (image, obs), reward, done, _ = env.step(a)
+
+        episode_step += 1
+        episode_ret += reward
+        '''
         image = np.transpose(image, [1, 2, 0])
         cv2.imshow('', image[:,:,0:3])
-        cv2.waitKey
-        print(i+1, done)
+        cv2.waitKey(1)
+        '''
 
+        if done:
+            episode += 1
+            print(f'episode: {episode}, return: {episode_ret}, episode_step: {episode_step}, step: {i}')
+    
+            env.reset()
+            episode_step = 0
+            episode_ret = 0
