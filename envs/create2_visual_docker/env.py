@@ -16,7 +16,7 @@ from senseact.rtrl_base_env import RTRLBaseEnv
 from senseact.devices.create2.create2_communicator import Create2Communicator
 from senseact.envs.create2.create2_observation import Create2ObservationFactory
 from senseact.sharedbuffer import SharedBuffer
-from depstech_camera_communicator import CameraCommunicator
+from envs.create2_visual_docker.depstech_camera_communicator import CameraCommunicator
 import cv2
 
 class Create2VisualDockerEnv(RTRLBaseEnv, gym.Env):
@@ -79,8 +79,8 @@ class Create2VisualDockerEnv(RTRLBaseEnv, gym.Env):
 
         # extra packets we need for proper reset and charging
         self._extra_sensor_packets = ['bumps and wheel drops', 'battery charge',
-                                      'oi mode', 'distance','charging sources available']
-                                      #'cliff left', 'cliff front left', 'cliff front right', 'cliff right']
+                                      'oi mode', 'distance','charging sources available',
+                                      'cliff left', 'cliff front left', 'cliff front right', 'cliff right']
         main_sensor_packet_ids = [d.packet_id for d in self._observation_def if d.packet_id is not None]
         extra_sensor_packet_ids = [create2_config.PACKET_NAME_TO_ID[nm] for nm in self._extra_sensor_packets]
 
@@ -330,8 +330,10 @@ class Create2VisualDockerEnv(RTRLBaseEnv, gym.Env):
 
         # don't want to state during reset pollute the first sensation
         time.sleep(1)
-        while sensor_window[-1][0]['charging sources available'] > 0:
-            time.sleep(1)
+        # sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
+        # while sensor_window[-1][0]['charging sources available'] > 0:
+        #     time.sleep(1)
+        #     sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
 
         print("Reset completed.")
 
