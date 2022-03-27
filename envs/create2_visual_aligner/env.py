@@ -16,7 +16,7 @@ from senseact.rtrl_base_env import RTRLBaseEnv
 from senseact.devices.create2.create2_communicator import Create2Communicator
 from senseact.envs.create2.create2_observation import Create2ObservationFactory
 from senseact.sharedbuffer import SharedBuffer
-from depstech_camera_communicator import CameraCommunicator
+from envs.create2_visual_aligner.depstech_camera_communicator import CameraCommunicator
 import cv2
 
 class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
@@ -29,7 +29,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
     """
 
     def __init__(self, episode_length_time=30, port='/dev/ttyUSB0', obs_history=1, dt=0.015, image_shape=(0, 0, 0),
-                 camera_id=0, min_target_size=0.1, **kwargs):
+                 camera_id=0, min_target_size=0.08, **kwargs):
         """Constructor of the environment.
         Args:
             episode_length_time: A float duration of an episode defined in seconds
@@ -49,7 +49,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         self._min_target_size = min_target_size
         self._min_battery = 1200
         self._max_battery = 1850
-        self._ir_window = 20
+        self._ir_window = 10
 
         # get the opcode for our main action (only 1 action)
         self._main_op = 'drive_direct'
@@ -107,7 +107,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
 
         # self._comm_name = 'Create2'
         communicator_setups = {}
-        buffer_len = int(dt / self._internal_timing + 1)
+        buffer_len = int(max([self._ir_window, dt / self._internal_timing]) + 1)
         communicator_setups['Create2'] = {'Communicator': Create2Communicator,
                                                  # have to read in this number of packets everytime to support
                                                  # all operations
@@ -409,16 +409,18 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         for p in range(self._ir_window):
             left = sensor_window[-1 - p][0]['infrared character left']
             right = sensor_window[-1 - p][0]['infrared character right']
+            print('left:', left, "right:", right)
             # omni = sensor_window[-1 - p][0]['infrared character omni'] 
-            aligned = (left in [164, 165, 172, 173]) and (right in [168, 169, 172, 173]) and (abs(left - right) > 1)
+            # aligned = (left in [164, 165, 172, 173]) and (right in [168, 169, 172, 173]) and (abs(left - right) > 1)
+            aligned = (left in [172]) and (right in [168, 172])
             if aligned:
                 break
-        print('aligned:', aligned)
+
         done = int(aligned)
         return reward, done
 
     def _calc_image_reward(self, sensor_window):
-        reward = 0.0
+        reward = 0
         done = 0
         image = sensor_window[-1]
         image = image.reshape(self._image_shape[1], self._image_shape[2], 3)
@@ -430,9 +432,11 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         contours, _ = cv2.findContours(blackAndWhiteImage, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         cv2.fillPoly(blackAndWhiteImage, pts=contours, color=(255, 255, 255))
         target_size = np.sum(blackAndWhiteImage/255.) / blackAndWhiteImage.size
-        print('target size:', target_size)
+        
         if target_size >= self._min_target_size:
             done = 1
+
+        print('reached:', done)
 
         return reward, done
 
@@ -471,7 +475,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
 if __name__ == '__main__':
     episode_length_step = int(30 / 0.045)
 
-    env = Create2VisualAlignerEnv(episode_length_time=30, dt=0.045, image_shape=(9, 120, 160), camera_id=0)
+    env = Create2VisualAlignerEnv(episode_length_time=3000, dt=0.045, image_shape=(9, 120, 160), camera_id=0)
     env.start()
     env.reset()
 
@@ -481,7 +485,7 @@ if __name__ == '__main__':
     for i in range(100000):
         a = env.action_space.sample()
         (image, obs), reward, done, _ = env.step([0,0])
-        print('reward:', reward, 'done:', done)
+
         episode_step += 1
         episode_ret += reward
         '''
