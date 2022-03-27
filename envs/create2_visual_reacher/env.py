@@ -269,7 +269,7 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
                 time.sleep(0.01)
 
         sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
-        print('current charge:', sensor_window[-1][0]['battery charge'])
+        print('Current charge:', sensor_window[-1][0]['battery charge'])
         if sensor_window[-1][0]['battery charge'] <= self._min_battery:
             print("Waiting for Create2 to be docked.")
             if sensor_window[-1][0]['charging sources available'] <= 0:

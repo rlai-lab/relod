@@ -7,7 +7,7 @@ import time
 import gym
 import logging
 import numpy as np
-import senseact.devices.create2.create2_config as create2_config
+import senseact.devices.create2.create2_config as create2_config_aligner
 from senseact import utils
 
 from multiprocessing import Array, Value
@@ -29,7 +29,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
     """
 
     def __init__(self, episode_length_time=30, port='/dev/ttyUSB0', obs_history=1, dt=0.015, image_shape=(0, 0, 0),
-                 camera_id=0, **kwargs):
+                 camera_id=0, min_target_size=0.1, **kwargs):
         """Constructor of the environment.
         Args:
             episode_length_time: A float duration of an episode defined in seconds
@@ -46,14 +46,16 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         self._episode_length_step = int(episode_length_time / dt)
         self._internal_timing = 0.015
         self._hsv_mask = ((60, 0, 0), (80, 255, 255))
+        self._min_target_size = min_target_size
         self._min_battery = 1200
         self._max_battery = 1850
+        self._ir_window = 20
 
         # get the opcode for our main action (only 1 action)
         self._main_op = 'drive_direct'
         self._extra_ops = ['safe', 'seek_dock', 'drive']
-        main_opcode = create2_config.OPCODE_NAME_TO_CODE[self._main_op]
-        extra_opcodes = [create2_config.OPCODE_NAME_TO_CODE[op] for op in self._extra_ops]
+        main_opcode = create2_config_aligner.OPCODE_NAME_TO_CODE[self._main_op]
+        extra_opcodes = [create2_config_aligner.OPCODE_NAME_TO_CODE[op] for op in self._extra_ops]
 
         # store the previous action/reward to be shared across processes
         self._prev_action_ = np.frombuffer(Array('i', 2).get_obj(), dtype='i')
@@ -81,10 +83,10 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         self._extra_sensor_packets = ['bumps and wheel drops', 'battery charge',
                                       'oi mode', 'distance','charging sources available',
                                       'infrared character left',
-                                      'infrared character right',]
-                                      #'cliff left', 'cliff front left', 'cliff front right', 'cliff right']
+                                      'infrared character right',
+                                      'cliff left', 'cliff front left', 'cliff front right', 'cliff right']
         main_sensor_packet_ids = [d.packet_id for d in self._observation_def if d.packet_id is not None]
-        extra_sensor_packet_ids = [create2_config.PACKET_NAME_TO_ID[nm] for nm in self._extra_sensor_packets]
+        extra_sensor_packet_ids = [create2_config_aligner.PACKET_NAME_TO_ID[nm] for nm in self._extra_sensor_packets]
 
         # TODO: move this out to some base class?
         from gym.spaces import Box as GymBox  # use this for baselines algos
@@ -93,8 +95,8 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         # go thru the main opcode (just direct_drive in this case) and add the range of each param
         # XXX should the action space include the opcode? what about op that doesn't have parameters?
         self._action_space = Box(
-            low=np.array([r[0] for r in create2_config.OPCODE_INFO[main_opcode]['params'].values()]),
-            high=np.array([r[1] for r in create2_config.OPCODE_INFO[main_opcode]['params'].values()])
+            low=np.array([r[0] for r in create2_config_aligner.OPCODE_INFO[main_opcode]['params'].values()]),
+            high=np.array([r[1] for r in create2_config_aligner.OPCODE_INFO[main_opcode]['params'].values()])
         )
 
         # loop thru the observation dimension and get the lows and highs
@@ -197,7 +199,10 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
             image = np.concatenate(image, axis=0) # change to self._image_shape
 
         #print('r_r:', r_r, "im_r:", im_r)
-        done = self._check_done(r_d or im_d)
+        if r_d == 2:
+            done = 1 
+        else:
+            done = int(self._check_done(r_d and im_d))
         return (image, roomba_obs), r_r+im_r-1,  done
 
     def _compute_image_obs_(self, sensor_window, timestamp_window, index_window):
@@ -247,7 +252,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         # pass int only action
         action = action.astype('i')
         self._actuation_packet_['Create2'] = np.concatenate(
-            ([create2_config.OPCODE_NAME_TO_CODE[self._main_op]], action))
+            ([create2_config_aligner.OPCODE_NAME_TO_CODE[self._main_op]], action))
         np.copyto(self._prev_action_, action)
 
     def _reset_(self):
@@ -288,30 +293,38 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         self._write_opcode('safe')
         time.sleep(0.1)
 
-        # go back to the charger
-        sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
-        if sensor_window[-1][0]['charging sources available'] <= 0:
-            # go to a random location
-            print("Moving Create2 into a random position.")
-            target_values = [-150, -150]
-            move_time = np.random.uniform(low=1, high=1.5)
-            
-            # back
-            self._write_opcode('drive_direct', *target_values)
-            time.sleep(move_time)
-            self._write_opcode('drive', 0, 0)
-            time.sleep(0.1)
-
-            self._seek_charger()
-
         # after charging/docked, try to drive away from the dock if still on it
-        sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
         if sensor_window[-1][0]['charging sources available'] > 0:
-            print("Undocking the Create2.")
-            self._write_opcode('drive_direct', -150, -150)
-            time.sleep(1)
+            logging.info("Undocking the Create2.")
+            self._write_opcode('drive_direct', -250, -250)
+            time.sleep(0.75)
             self._write_opcode('drive_direct', 0, 0)
             time.sleep(0.1)
+
+        # drive backward and rotate randomly
+        logging.info("Moving Create2 into position.")
+        target_values = [-300, -300]
+        move_time = np.random.uniform(low=1, high=1.5)
+        rotate_time = np.random.uniform(low=0.5, high=1)
+        direction = np.random.choice((1, -1))
+        
+        # back
+        self._write_opcode('drive_direct', *target_values)
+        time.sleep(move_time)
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
+
+        # rotate
+        self._write_opcode('drive_direct', *(300*direction, -300*direction))
+        time.sleep(rotate_time)
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
+        
+        # back
+        self._write_opcode('drive_direct', *target_values)
+        time.sleep(move_time)
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
 
         # make sure in SAFE mode in case the random drive caused switch to PASSIVE, or
         # create2 stuck somewhere and require human reset (don't want an episode to start
@@ -327,6 +340,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
             time.sleep(0.1)
             self._write_opcode('safe')
             time.sleep(0.2)
+
             sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
 
         # don't want to state during reset pollute the first sensation
@@ -368,19 +382,29 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         bw = 0
         for p in range(int(self._dt / self._internal_timing)):
             bw |= sensor_window[-1 - p][0]['bumps and wheel drops']
-        '''
+        
         cl = 0
         for p in range(int(self._dt / self._internal_timing)):
             cl += sensor_window[-1 - p][0]['cliff left']
             cl += sensor_window[-1 - p][0]['cliff front left']
             cl += sensor_window[-1 - p][0]['cliff front right']
             cl += sensor_window[-1 - p][0]['cliff right']
-        '''
-        reward = 0.0
+
+        reward = 0
+
+        charging_sources_available = sensor_window[-1][0]['charging sources available']
+
+        oi_mode = sensor_window[-1][0]['oi mode']
+        if oi_mode == 1 and charging_sources_available == 0 and cl == 0:
+            self._write_opcode('safe')
+
         # If wheel dropped, it's done and result in a big penalty.
+        done = 0
         if (bw >> 2) > 0:
-            done = 1
+            done = 2
             reward = -self._episode_length_step
+
+            return reward, done
 
         for p in range(self._ir_window):
             left = sensor_window[-1 - p][0]['infrared character left']
@@ -389,13 +413,26 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
             aligned = (left in [164, 165, 172, 173]) and (right in [168, 169, 172, 173]) and (abs(left - right) > 1)
             if aligned:
                 break
-
-        done = done or aligned
+        print('aligned:', aligned)
+        done = int(aligned)
         return reward, done
 
     def _calc_image_reward(self, sensor_window):
         reward = 0.0
         done = 0
+        image = sensor_window[-1]
+        image = image.reshape(self._image_shape[1], self._image_shape[2], 3)
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, np.array(self._hsv_mask[0]), np.array(self._hsv_mask[1]))
+        output = cv2.bitwise_and(image, image, mask=mask)
+        gray = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY) # original rgb2gray
+        _, blackAndWhiteImage = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
+        contours, _ = cv2.findContours(blackAndWhiteImage, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        cv2.fillPoly(blackAndWhiteImage, pts=contours, color=(255, 255, 255))
+        target_size = np.sum(blackAndWhiteImage/255.) / blackAndWhiteImage.size
+        print('target size:', target_size)
+        if target_size >= self._min_target_size:
+            done = 1
 
         return reward, done
 
@@ -408,7 +445,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         # write the command directly to actuator_buffer to avoid the limitation that the opcode
         # is not part of the action dimension
         self._actuator_comms['Create2'].actuator_buffer.write(
-            np.concatenate(([create2_config.OPCODE_NAME_TO_CODE[opcode_name]], np.array(args).astype('i'))))
+            np.concatenate(([create2_config_aligner.OPCODE_NAME_TO_CODE[opcode_name]], np.array(args).astype('i'))))
 
     # ======== rllab compatible gym codes =========
 
@@ -434,7 +471,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
 if __name__ == '__main__':
     episode_length_step = int(30 / 0.045)
 
-    env = Create2VisualDockerEnv(episode_length_time=30, dt=0.045, image_shape=(9, 120, 160), camera_id=0)
+    env = Create2VisualAlignerEnv(episode_length_time=30, dt=0.045, image_shape=(9, 120, 160), camera_id=0)
     env.start()
     env.reset()
 
@@ -443,8 +480,8 @@ if __name__ == '__main__':
     episode = 0
     for i in range(100000):
         a = env.action_space.sample()
-        (image, obs), reward, done, _ = env.step(a)
-
+        (image, obs), reward, done, _ = env.step([0,0])
+        print('reward:', reward, 'done:', done)
         episode_step += 1
         episode_ret += reward
         '''
@@ -457,6 +494,6 @@ if __name__ == '__main__':
             episode += 1
             print(f'episode: {episode}, return: {episode_ret}, episode_step: {episode_step}, step: {i}')
     
-            env.reset()
+            # env.reset()
             episode_step = 0
             episode_ret = 0
