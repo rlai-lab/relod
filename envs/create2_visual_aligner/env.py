@@ -7,7 +7,7 @@ import time
 import gym
 import logging
 import numpy as np
-import senseact.devices.create2.create2_config as create2_config_aligner
+import senseact.devices.create2.create2_config_aligner as create2_config_aligner
 from senseact import utils
 
 from multiprocessing import Array, Value
@@ -277,14 +277,14 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
         print('Current charge:', sensor_window[-1][0]['battery charge'])
         if sensor_window[-1][0]['battery charge'] <= self._min_battery:
-            print('Recharging...')
-            self._seek_charger()
-            sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
-            while sensor_window[-1][0]['battery charge'] < self._max_battery:
-                print('Current charge:', sensor_window[-1][0]['battery charge'])
-                logging.info("Create2 charging with current charge at {}.".format(sensor_window[-1]['battery charge']))
+            print("Waiting for Create2 to be docked.")
+            if sensor_window[-1][0]['charging sources available'] <= 0:
+                self._write_opcode('drive_direct', 0, 0)
+                time.sleep(0.75)
+                self._write_opcode('seek_dock')
                 time.sleep(10)
-                sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
+            self._wait_until_charged()
+            sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
 
         # Always switch to SAFE mode to run an episode, so that Create2 will switch to PASSIVE on the
         # charger.  If the create2 is in any other mode on the charger, we will not be able to detect
@@ -344,7 +344,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
             sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
 
         # don't want to state during reset pollute the first sensation
-        time.sleep(2 * self._internal_timing)
+        time.sleep(1)
 
         print("Reset completed.")
 
@@ -409,7 +409,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         for p in range(self._ir_window):
             left = sensor_window[-1 - p][0]['infrared character left']
             right = sensor_window[-1 - p][0]['infrared character right']
-            print('left:', left, "right:", right)
+            # print('left:', left, "right:", right)
             # omni = sensor_window[-1 - p][0]['infrared character omni'] 
             # aligned = (left in [164, 165, 172, 173]) and (right in [168, 169, 172, 173]) and (abs(left - right) > 1)
             aligned = (left in [172]) and (right in [168, 172])
@@ -436,7 +436,7 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         if target_size >= self._min_target_size:
             done = 1
 
-        print('reached:', done)
+        # print('reached:', done)
 
         return reward, done
 
@@ -451,6 +451,22 @@ class Create2VisualAlignerEnv(RTRLBaseEnv, gym.Env):
         self._actuator_comms['Create2'].actuator_buffer.write(
             np.concatenate(([create2_config_aligner.OPCODE_NAME_TO_CODE[opcode_name]], np.array(args).astype('i'))))
 
+    def _wait_until_charged(self):
+        """Waits until Create 2 is sufficiently charged."""
+        sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
+        logging.info("Need to charge .. {}.".format(sensor_window[-1]['battery charge']))
+        while sensor_window[-1][0]['battery charge'] < self._max_battery:
+            # move it out of the dock to avoid the weird non-responsive sleep mode (the non-responsive sleep
+            # mode can happen on any mode while on the dock, but only detectable when in PASSIVE mode)
+            self._write_opcode('safe')
+            time.sleep(0.1)
+            self._write_opcode('seek_dock')
+            time.sleep(0.1)
+            logging.info("Create2 charging with current charge at {}.".format(sensor_window[-1]['battery charge']))
+            time.sleep(10)
+            print('current charge:', sensor_window[-1][0]['battery charge'])
+            sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
+    
     # ======== rllab compatible gym codes =========
 
     @property
