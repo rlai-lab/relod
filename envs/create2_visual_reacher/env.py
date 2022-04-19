@@ -80,8 +80,8 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
 
         # extra packets we need for proper reset and charging
         self._extra_sensor_packets = ['bumps and wheel drops', 'battery charge',
-                                      'oi mode', 'distance','charging sources available']
-                                      #'cliff left', 'cliff front left', 'cliff front right', 'cliff right']
+                                      'oi mode', 'distance','charging sources available',
+                                      'cliff left', 'cliff front left', 'cliff front right', 'cliff right']
         main_sensor_packet_ids = [d.packet_id for d in self._observation_def if d.packet_id is not None]
         extra_sensor_packet_ids = [create2_config.PACKET_NAME_TO_ID[nm] for nm in self._extra_sensor_packets]
 
@@ -369,15 +369,22 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         bw = 0
         for p in range(int(self._dt / self._internal_timing)):
             bw |= sensor_window[-1 - p][0]['bumps and wheel drops']
-        '''
+        
         cl = 0
         for p in range(int(self._dt / self._internal_timing)):
             cl += sensor_window[-1 - p][0]['cliff left']
             cl += sensor_window[-1 - p][0]['cliff front left']
             cl += sensor_window[-1 - p][0]['cliff front right']
             cl += sensor_window[-1 - p][0]['cliff right']
-        '''
+        
         reward = 0
+
+        charging_sources_available = sensor_window[-1][0]['charging sources available']
+
+        oi_mode = sensor_window[-1][0]['oi mode']
+        if oi_mode == 1 and charging_sources_available == 0 and cl == 0:
+            self._write_opcode('safe')
+
         # If wheel dropped, it's done and result in a big penalty.
         done = 0
         if (bw >> 2) > 0:
