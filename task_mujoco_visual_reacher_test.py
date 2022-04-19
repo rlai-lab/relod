@@ -2,7 +2,7 @@ import torch
 import argparse
 import time
 from algo.onboard_wrapper import OnboardWrapper
-from algo.sac_rad_agent import SACRADPerformer, SACRADLearner
+from algo.sac_rad_agent_roomba import SACRADPerformer, SACRADLearner
 import utils
 from envs.mujoco_visual_reacher.env import ReacherWrapper
 from algo.comm import MODE
@@ -10,7 +10,7 @@ from logger import Logger
 import os
 
 config = {
-    '''
+    
     'conv': [
         # in_channel, out_channel, kernel_size, stride
         [-1, 32, 3, 2],
@@ -18,7 +18,7 @@ config = {
         [32, 32, 3, 2],
         [32, 32, 3, 1],
     ],
-    '''
+    
     'latent': 50,
 
     'mlp': [
@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--env_steps', default=20000, type=int)
+    parser.add_argument('--env_steps', default=100000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1, type=float)
@@ -67,9 +67,8 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
-    parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
@@ -99,8 +98,10 @@ def main():
 
     if not 'conv' in config:
         image_shape = (0, 0, 0)
+        use_ground_truth = True
     else: 
         image_shape = (3*args.stack_frames, args.image_height, args.image_width)
+        use_ground_truth = False
 
     args.work_dir += f'/results/{args.target_type}_' \
                      f'seed={args.seed}_' \
@@ -112,7 +113,7 @@ def main():
     args.model_dir = model_dir
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
-    env = ReacherWrapper(args.tol, image_shape, args.image_period, use_ground_truth=True)
+    env = ReacherWrapper(args.tol, image_shape, args.image_period, use_ground_truth=use_ground_truth)
     utils.set_seed_everywhere(args.seed, env)
 
     args.image_shape = env.image_space.shape
@@ -126,7 +127,7 @@ def main():
     agent.send_data(args)
     agent.init_learner(SACRADLearner, args)
     agent.init_performer(SACRADPerformer, args)
-    
+    agent.learner.set_performer(agent.performer)
 
     # sync initial weights with remote
     agent.apply_remote_policy(block=True)
