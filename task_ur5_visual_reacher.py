@@ -81,7 +81,6 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--args_port', default=9630, type=int)
     parser.add_argument('--seed', default=2, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
@@ -201,8 +200,8 @@ def main():
             if mode == MODE.LOCAL_ONLY:
                 L.log('train/duration', time.time() - start_time, step)
                 L.log('train/episode_reward', episode_reward, step)
-                L.dump(step)
                 L.log('train/episode', episode+1, step)
+                L.dump(step)
                 mt.reset_plot()
 
             next_obs, next_state = env.reset()
