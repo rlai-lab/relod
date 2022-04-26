@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument('--setup', default='Visual-UR5')
     parser.add_argument('--env_name', default='Visual-UR5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=1, type=int)
+    parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='reaching', type=str)
@@ -78,7 +78,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--seed', default=2, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -93,9 +93,9 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def main():
+def main(seed):
     args = parse_args()
-
+    args.seed = seed
     if args.mode == 'r':
         mode = MODE.REMOTE_ONLY
     elif args.mode == 'o':
@@ -166,6 +166,10 @@ def main():
         agent.load_policy_from_file(args.model_dir, args.load_model)
     
     # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
     time.sleep(10)
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     if mode == MODE.EVALUATION:
@@ -233,4 +237,5 @@ def main():
     print('Train finished')
 
 if __name__ == '__main__':
-    main()
+    for seed in range(5):
+        main(seed)
