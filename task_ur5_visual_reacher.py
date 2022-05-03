@@ -76,16 +76,16 @@ def parse_args():
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     # agent
-    parser.add_argument('--remote_ip', default='192.168.0.105', type=str)
+    parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--seed', default=2, type=int)
+    parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
     #parser.add_argument('--save_buffer', default=False, action='store_true')
-    parser.add_argument('--save_model_freq', default=10000, type=int)
+    parser.add_argument('--save_model_freq', default=100, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
@@ -93,9 +93,9 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def main(seed):
+def main():
     args = parse_args()
-    args.seed = seed
+
     if args.mode == 'r':
         mode = MODE.REMOTE_ONLY
     elif args.mode == 'o':
@@ -166,10 +166,7 @@ def main(seed):
         agent.load_policy_from_file(args.model_dir, args.load_model)
     
     # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
-    mt.reset_plot()
-    mt.reset_plot()
-    mt.reset_plot()
-    mt.reset_plot()
+    
     time.sleep(10)
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     if mode == MODE.EVALUATION:
@@ -237,5 +234,4 @@ def main(seed):
     print('Train finished')
 
 if __name__ == '__main__':
-    for seed in range(5):
-        main(seed)
+    main()
