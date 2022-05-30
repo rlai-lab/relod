@@ -80,7 +80,7 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--seed', default=0, type=int)
+    parser.add_argument('--seed', default=9, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
