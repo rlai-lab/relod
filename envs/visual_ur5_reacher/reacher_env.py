@@ -31,7 +31,7 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
                  channel_first=True,
                  control_type='position',
                  derivative_type='none',
-                 target_type='reacher',
+                 target_type='reaching',
                  reset_type='random',
                  deriv_action_max=10,
                  first_deriv_max=10,  # used only with second derivative control
@@ -373,6 +373,9 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
 
     def _reset_arm(self, reset_angles):
         """Sends reset packet to communicator and sleeps until executed."""
+        self._actuator_comms['UR5'].actuator_buffer.write(self._stopj_packet)
+        time.sleep(0.5)
+
         self._reset_packet[1:1 + 6][self._joint_indices] = reset_angles
         self._actuator_comms['UR5'].actuator_buffer.write(self._reset_packet)
         time.sleep(max(self._reset_packet[-2] * 1.5, 2.0))
@@ -788,8 +791,8 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
             A bool specifying whether the episode is over.
         """
         self._episode_steps += 1
-        if (self._episode_steps >= self._episode_length_step):# or env_done:
-            self._actuator_comms['UR5'].actuator_buffer.write(self._nothing_packet)
+        if (self._episode_steps >= self._episode_length_step): # or env_done:
+            self._actuator_comms['UR5'].actuator_buffer.write(self._stopj_packet)
             return True
         else:
             return False

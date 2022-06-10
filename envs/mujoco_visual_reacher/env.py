@@ -11,27 +11,28 @@ class ReacherWrapper(gym.Wrapper):
     def __init__(self, tol, image_shape=(0, 0, 0), image_period=None, reward_scale=1.0, use_ground_truth=False):
         super().__init__(gym.make('Reacher-v2').unwrapped)
         self._tol = tol
+        self._image_shape = image_shape
         self._image_period = image_period
         self._reward_scale = reward_scale
         print('reward_scale:', reward_scale)
         self._use_ground_truth = use_ground_truth
         print('use ground truth:', self._use_ground_truth)
         
-        self._use_image = False
         if image_shape != (0, 0, 0):
             self._image_buffer = deque([], maxlen=image_shape[0]//3)
-            self._use_image = True
             print('time period:', image_period)
-
-        self.image_space = Box(low=0, high=255, shape=image_shape)
 
         # remember to reset 
         self._latest_image = None
         self._reset = False
         self._epi_step = 0
-        if not self._use_ground_truth and not self._use_image:
+        if not self._use_ground_truth and image_shape==(0, 0, 0):
             print("warning: no target in state and image.")
             input("press any key to continue...")
+
+    @property
+    def image_space(self):
+        self.image_space = Box(low=0, high=255, shape=self._image_shape)
 
     @property
     def proprioception_space(self):
@@ -57,7 +58,7 @@ class ReacherWrapper(gym.Wrapper):
             info['reached'] = True
             done = True
 
-        if self._use_image and (self._epi_step % self._image_period) == 0:
+        if self._image_shape != (0, 0, 0) and (self._epi_step % self._image_period) == 0:
             new_img = self._get_new_img()
             self._image_buffer.append(new_img)
             self._latest_image = np.concatenate(self._image_buffer, axis=0)
@@ -71,7 +72,7 @@ class ReacherWrapper(gym.Wrapper):
         ob = self.env.reset()
         ob = self._get_ob(ob)
 
-        if self._use_image:
+        if self._image_shape != (0, 0, 0):
             new_img = self._get_new_img()
             for _ in range(self._image_buffer.maxlen):
                 self._image_buffer.append(new_img)
@@ -121,3 +122,4 @@ if __name__ == '__main__':
         if done:
             env.reset()
             waitKey = 0
+            
