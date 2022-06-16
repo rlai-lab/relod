@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--env_steps', default=100000, type=int)
+    parser.add_argument('--env_steps', default=200000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1, type=float)

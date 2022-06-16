@@ -32,7 +32,7 @@ class ReacherWrapper(gym.Wrapper):
 
     @property
     def image_space(self):
-        self.image_space = Box(low=0, high=255, shape=self._image_shape)
+        return Box(low=0, high=255, shape=self._image_shape)
 
     @property
     def proprioception_space(self):
