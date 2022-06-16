@@ -10,7 +10,7 @@ from logger import Logger
 import os
 
 config = {
-    '''
+    
     'conv': [
         # in_channel, out_channel, kernel_size, stride
         [-1, 32, 3, 2],
@@ -18,7 +18,7 @@ config = {
         [32, 32, 3, 2],
         [32, 32, 3, 1],
     ],
-    '''
+    
     'latent': 50,
 
     'mlp': [
@@ -67,7 +67,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
     # misc
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -111,7 +111,7 @@ def main():
     args.model_dir = model_dir
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
-    env = ReacherWrapper(args.tol, image_shape, args.image_period, use_ground_truth=True)
+    env = ReacherWrapper(args.tol, image_shape, args.image_period, use_ground_truth=False)
     utils.set_seed_everywhere(args.seed, env)
 
     args.image_shape = env.image_space.shape

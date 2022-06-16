@@ -72,7 +72,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.100', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--seed', default=3, type=int)
     parser.add_argument('--work_dir', default='.', type=str)

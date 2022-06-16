@@ -55,10 +55,10 @@ def parse_args():
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=10000, type=int) 
-    parser.add_argument('--env_steps', default=200000, type=int)
+    parser.add_argument('--env_steps', default=100000, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
-    parser.add_argument('--max_updates_per_step', default=2, type=float)
+    parser.add_argument('--max_updates_per_step', default=0.6, type=float)
     parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
     # critic
@@ -102,10 +102,7 @@ def main():
     elif args.mode == 'o':
         mode = MODE.LOCAL_ONLY
         mt = MonitorTarget()
-        mt.reset_plot()
-        mt.reset_plot()
-        mt.reset_plot()
-        mt.reset_plot()
+        
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
     elif args.mode == 'e':
@@ -122,7 +119,7 @@ def main():
                      f'dt={args.dt}_bs={args.batch_size}_' \
                      f'dim={args.image_width}*{args.image_height}_{args.seed}_'+args.appendix
 
-    args.model_dir = args.work_dir+'\model'
+    args.model_dir = args.work_dir+'/model'
 
     if mode == MODE.LOCAL_ONLY:
         utils.make_dir(args.work_dir)
@@ -148,6 +145,10 @@ def main():
     )
 
     utils.set_seed_everywhere(args.seed, None)
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
     
     image, prop = env.reset()
     args.image_shape = env.image_space.shape
