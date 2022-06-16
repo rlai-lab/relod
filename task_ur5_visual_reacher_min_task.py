@@ -9,7 +9,7 @@ from algo.comm import MODE
 from algo.onboard_wrapper import OnboardWrapper
 from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from envs.visual_ur5_reacher.configs.ur5_config import config
-from envs.visual_ur5_min_time_reacher.env import ReacherEnv
+from envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv
 from remote_learner_ur5 import MonitorTarget
 import numpy as np
 import cv2
@@ -48,14 +48,14 @@ def parse_args():
     parser.add_argument('--image_history', default=3, type=int)
     parser.add_argument('--joint_history', default=1, type=int)
     parser.add_argument('--ignore_joint', default=False, action='store_true')
-    parser.add_argument('--episode_length_time', default=40.0, type=float)
+    parser.add_argument('--episode_length_time', default=30.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
-    parser.add_argument('--init_steps', default=1000, type=int) 
-    parser.add_argument('--env_steps', default=100000, type=int)
+    parser.add_argument('--init_steps', default=10000, type=int) 
+    parser.add_argument('--env_steps', default=200000, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=2, type=float)
@@ -122,7 +122,7 @@ def main():
                      f'dt={args.dt}_bs={args.batch_size}_' \
                      f'dim={args.image_width}*{args.image_height}_{args.seed}_'+args.appendix
 
-    args.model_dir = args.work_dir+'model'
+    args.model_dir = args.work_dir+'\model'
 
     if mode == MODE.LOCAL_ONLY:
         utils.make_dir(args.work_dir)
@@ -133,7 +133,7 @@ def main():
         args.image_dir = args.work_dir+'image'
         utils.make_dir(args.image_dir)
 
-    env = ReacherEnv(
+    env = VisualReacherMinTimeEnv(
         setup = args.setup,
         ip = args.ur5_ip,
         seed = args.seed,
@@ -153,6 +153,7 @@ def main():
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
     args.action_shape = env.action_space.shape
+    args.env_action_space = env.action_space
     args.net_params = config
 
     episode_length_step = int(args.episode_length_time / args.dt)
@@ -167,9 +168,6 @@ def main():
     if args.load_model > -1:
         agent.load_policy_from_file(args.model_dir, args.load_model)
     
-    # TODO: Fix this hack. This gives us enough time to toggle target in the monitor
-    
-    time.sleep(10)
     episode, episode_reward, episode_step, done = 0, 0, 0, True
     if mode == MODE.EVALUATION:
         episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
@@ -191,20 +189,20 @@ def main():
         action = agent.sample_action((image, prop), step)
 
         # step in the environment
-        next_image, next_prop, reward, done, _ = env.step(action)
+        next_image, next_prop, reward, done, terminated, _ = env.step(action)
 
         episode_reward += reward
         episode_step += 1
         
         agent.push_sample((image, prop), action, reward, (next_image, next_prop), done)
 
-        if done and step > 0:
+        if done or terminated:
             if mode == MODE.LOCAL_ONLY:
                 L.log('train/duration', time.time() - start_time, step)
                 L.log('train/episode_reward', episode_reward, step)
                 L.log('train/episode', episode+1, step)
                 L.dump(step)
-                mt.reset_plot()
+                # mt.reset_plot()
 
             next_image, next_prop = env.reset()
             agent.send_init_ob((next_image, next_prop))

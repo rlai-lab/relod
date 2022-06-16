@@ -1,15 +1,16 @@
 from envs.visual_ur5_reacher.reacher_env import ReacherEnv
 import numpy as np
 from senseact.utils import NormalizedEnv
+from remote_learner_ur5 import MonitorTarget
 
-class VisualReacherEnvMinTime:
+class VisualReacherMinTimeEnv:
     def __init__(self,
                  setup='Visual-UR5-min-time',
                  ip='129.128.159.210',
                  seed=9,
                  camera_id=0,
                  image_width=160,
-                 image_height=120,
+                 image_height=90,
                  target_type='reaching',
                  image_history=3,
                  joint_history=1,
@@ -58,11 +59,11 @@ class VisualReacherEnvMinTime:
 
     @property
     def image_space(self):
-        return self._env.image_space['image']
+        return self._env._observation_space['image']
 
     @property
     def proprioception_space(self):
-        return self._env.observation_space['joint']
+        return self._env._observation_space['joint']
 
     @property
     def action_space(self):
@@ -89,7 +90,7 @@ class VisualReacherEnvMinTime:
         done = 0
         info = {}
         info['reward'] = reward
-        if reward >= 1:
+        if reward >= 2:
             done = 1
 
         if done or terminated:
@@ -100,11 +101,23 @@ class VisualReacherEnvMinTime:
         return image, prop, reward, done, terminated, info
 
 if __name__ == '__main__':
-    env = VisualReacherEnvMinTime()
+    env = VisualReacherMinTimeEnv()
+    mt = MonitorTarget()
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
     env.reset()
-    while True:
+    success, episodes = 0, 0
+    while episodes <= 20:
         action = env.action_space.sample()
         image, prop, reward, done, terminated, info = env.step(action)
         print('reward:', info['reward'])
+        
         if done or terminated:
+            episodes += 1
             env.reset()
+            if done:
+                success += 1
+            print('episodes:', episodes)
+            print('success:', success)
