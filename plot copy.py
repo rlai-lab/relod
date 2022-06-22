@@ -6,11 +6,11 @@ import pandas
 
 df = pandas.DataFrame(columns=["step", "avg_ret"])
 
-int = 1000
-for seed in range(5, 10):
-    exp = "Visual-UR5_reaching_dt=0.04_bs=128_dim=160*90_"+str(seed)
+int = 2000
+for seed in range(0, 1):
+    exp = "Visual-UR5-min-time_dt=0.04_bs=128_dim=160*90_9_min-time"
 
-    with open("results/paper/"+exp+"/train.log") as f:
+    with open("results/"+exp+"/train.log") as f:
         episodes = f.readlines()
 
         returns = []

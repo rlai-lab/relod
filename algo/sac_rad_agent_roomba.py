@@ -9,6 +9,9 @@ from algo.sac_rad_buffer import AsyncRadReplayBuffer, RadReplayBuffer
 import queue
 
 class SACRADPerformer(BasePerformer):
+    '''
+    avoid duplicating the performer weights
+    '''
     def __init__(self, args) -> None:
         self._args = args
         self._args.device = torch.device(args.device)
