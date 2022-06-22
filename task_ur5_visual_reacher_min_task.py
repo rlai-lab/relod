@@ -48,14 +48,14 @@ def parse_args():
     parser.add_argument('--image_history', default=3, type=int)
     parser.add_argument('--joint_history', default=1, type=int)
     parser.add_argument('--ignore_joint', default=False, action='store_true')
-    parser.add_argument('--episode_length_time', default=30.0, type=float)
+    parser.add_argument('--episode_length_time', default=20.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
-    parser.add_argument('--init_steps', default=10000, type=int) 
-    parser.add_argument('--env_steps', default=100000, type=int)
+    parser.add_argument('--init_steps', default=5000, type=int) 
+    parser.add_argument('--env_steps', default=200000, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.6, type=float)
@@ -64,11 +64,11 @@ def parse_args():
     # critic
     parser.add_argument('--critic_lr', default=3e-4, type=float)
     parser.add_argument('--critic_tau', default=0.01, type=float)
-    parser.add_argument('--critic_target_update_freq', default=2, type=int)
+    parser.add_argument('--critic_target_update_freq', default=1, type=int)
     parser.add_argument('--bootstrap_terminal', default=1, type=int)
     # actor
     parser.add_argument('--actor_lr', default=3e-4, type=float)
-    parser.add_argument('--actor_update_freq', default=2, type=int)
+    parser.add_argument('--actor_update_freq', default=1, type=int)
     # encoder
     parser.add_argument('--encoder_tau', default=0.05, type=float)
     # sac
@@ -149,7 +149,7 @@ def main():
     mt.reset_plot()
     mt.reset_plot()
     mt.reset_plot()
-    
+
     image, prop = env.reset()
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
@@ -180,6 +180,10 @@ def main():
         args.init_steps = 0
     
     agent.send_init_ob((image, prop))
+    image_to_save = np.transpose(image, [1, 2, 0])
+    image_to_save = image_to_save[:,:,0:3]
+    cv2.imwrite('./0.png', image_to_save)
+    input('go on')
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
         if mode == MODE.EVALUATION:
@@ -188,7 +192,6 @@ def main():
             cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
 
         action = agent.sample_action((image, prop), step)
-
         # step in the environment
         next_image, next_prop, reward, done, terminated, _ = env.step(action)
 

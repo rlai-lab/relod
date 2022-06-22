@@ -137,7 +137,8 @@ setups = {
                   'accel_max': 1,      # maximum acceleration magnitude of the leading axis using speedj
                   'reset_speed_limit': 0.5,
                   #'q_ref': np.array([ 1.58724391, -2.0, 2.1, -3.01790582, -1.63685572, 3.1415926]),
-                  'q_ref': np.array([ 1.5707, -2.0, 1.9, -3.0415, -1.5707, 3.1415]),
+                  #'q_ref': np.array([ 1.5707, -2.0, 1.9, -3.0415, -1.5707, 3.1415]),
+                  'q_ref': np.array([ 1.5707, -2.0, 2.17, -3.0415, -1.5707, 3.1415]),
                   'box_bound_buffer': 0.001,
                   'angle_bound_buffer': 0.001,
                   'ik_params':
@@ -161,16 +162,16 @@ setups = {
                   # for origin: -0.1, 0.3, 0.6
                   'end_effector_high': np.array([0.15, 0.55, 0.7]),
                   'angles_low':np.pi/180 * np.array(
-                      [ 55, # base
+                      [ 60, # base
                        -120, # shoulder
                        -0, # elbow
-                       -215, # wrist 1
+                       -250, # wrist 1
                         -135, # wrist 2
                         50 # wrist 3, fixed
                        ]
                   ),
                   'angles_high':np.pi/180 * np.array(
-                      [ 105, # base
+                      [ 115, # base
                        -30, # shoulder
                         135, # elbow
                         -135, # wrist 1
@@ -182,7 +183,7 @@ setups = {
                   'accel_max': 1,      # maximum acceleration magnitude of the leading axis using speedj
                   'reset_speed_limit': 0.5,
                   #'q_ref': np.array([ 1.58724391, -2.0, 2.1, -3.01790582, -1.63685572, 3.1415926]),
-                  'q_ref': np.array([ 1.5707, -2.0, 1.9, -3.0415, -1.5707, 3.1415]),
+                  'q_ref': np.array([ 1.5707, -2.0, 2.17, -3.0415, -1.5707, 3.1415]),
                   'box_bound_buffer': 0.001,
                   'angle_bound_buffer': 0.001,
                   'ik_params':

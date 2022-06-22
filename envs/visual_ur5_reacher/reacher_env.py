@@ -757,12 +757,15 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
             A float reward.
         """
         image = image[:, :, -3:]
-        lower = [0, 0, 120]
-        upper = [50, 50, 255]
+        #lower = [0, 0, 120]
+        #upper = [50, 50, 255]
+        lower = [120, 0, 0]
+        upper = [255, 50, 50]
         lower = np.array(lower, dtype="uint8")
         upper = np.array(upper, dtype="uint8")
 
         mask = cv.inRange(image, lower, upper)
+        cv.imwrite('test.png', mask)
         size_x, size_y = mask.shape
         # reward for reaching task, may not be suitable for tracking
         if 255 in mask:

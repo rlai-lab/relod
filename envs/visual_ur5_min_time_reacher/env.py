@@ -2,6 +2,7 @@ from envs.visual_ur5_reacher.reacher_env import ReacherEnv
 import numpy as np
 from senseact.utils import NormalizedEnv
 from remote_learner_ur5 import MonitorTarget
+from gym.spaces import Box
 
 class VisualReacherMinTimeEnv:
     def __init__(self,
@@ -67,7 +68,10 @@ class VisualReacherMinTimeEnv:
 
     @property
     def action_space(self):
-        return self._env.action_space
+        low = self._env.action_space.low[0:3]
+        high = self._env.action_space.high[0:3]
+
+        return Box(low=low, high=high)
 
     def reset(self):
         assert not self._reset
@@ -82,7 +86,7 @@ class VisualReacherMinTimeEnv:
 
     def step(self, action):
         assert self._reset
-
+        action = np.append(action, [0, 0])
         obs_dict, reward, done, _ = self._env.step(action)
         image = obs_dict['image']
         prop = obs_dict['joint']

@@ -22,7 +22,7 @@ class MonitorTarget:
         plt.subplots_adjust(left=0.0, right=1.0, top=1.0, bottom=0.0)
         self.fig.canvas.toolbar_visible = False
         self.ax = plt.axes(xlim=(0, self.width), ylim=(0, self.height))
-        self.target = plt.Circle((0, 0), self.radius, color='red')
+        self.target = plt.Circle((0, 0), self.radius, color='blue')
         self.ax.add_patch(self.target)
         plt.axis('off')
 
