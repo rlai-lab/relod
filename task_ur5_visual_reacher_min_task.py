@@ -101,13 +101,13 @@ def main():
         mode = MODE.REMOTE_ONLY
     elif args.mode == 'o':
         mode = MODE.LOCAL_ONLY
-        mt = MonitorTarget()
+        #mt = MonitorTarget()
         
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
     elif args.mode == 'e':
-        mt = MonitorTarget()
-        mt.reset_plot()
+        #mt = MonitorTarget()
+        #mt.reset_plot()
         mode = MODE.EVALUATION
     else:
         raise  NotImplementedError()
@@ -145,10 +145,10 @@ def main():
     )
 
     utils.set_seed_everywhere(args.seed, None)
-    mt.reset_plot()
-    mt.reset_plot()
-    mt.reset_plot()
-    mt.reset_plot()
+    #mt.reset_plot()
+    #mt.reset_plot()
+    #mt.reset_plot()
+    #mt.reset_plot()
 
     image, prop = env.reset()
     args.image_shape = env.image_space.shape
