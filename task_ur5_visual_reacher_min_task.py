@@ -15,7 +15,7 @@ import numpy as np
 import cv2
 
 config = {
-    '''
+    
     'conv': [
         # in_channel, out_channel, kernel_size, stride
         [-1, 32, 3, 2],
@@ -23,7 +23,7 @@ config = {
         [32, 32, 3, 2],
         [32, 32, 3, 1],
     ],
-    '''
+    
     'latent': 50,
 
     'mlp': [
@@ -156,12 +156,11 @@ def main():
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
     args.action_shape = env.action_space.shape
-    args.env_action_space = env.action_space 
+    args.env_action_space = env.action_space
     args.net_params = config
 
     episode_length_step = int(args.episode_length_time / args.dt)
-    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=
-    args.port)
+    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
     agent.send_data(args)
     agent.init_performer(SACRADPerformer, args)
     agent.init_learner(SACRADLearner, args, agent.performer)

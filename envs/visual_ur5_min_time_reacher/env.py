@@ -3,35 +3,6 @@ import numpy as np
 from senseact.utils import NormalizedEnv
 from remote_learner_ur5 import MonitorTarget
 from gym.spaces import Box
-import cv2
-import math
-
-def get_center(image):
-    image = np.transpose(image, [1, 2, 0])[:,:,-3:]
-    image = np.array(image)
-    lower = [120, 0, 0]
-    upper = [255, 50, 50]
-    lower = np.array(lower, dtype="uint8")
-    upper = np.array(upper, dtype="uint8")
-
-    mask = cv2.inRange(image, lower, upper)
-
-    m = cv2.moments(mask)
-    if math.isclose(m["m00"], 0.0, rel_tol=1e-6, abs_tol=0.0):
-        x = 0
-        y = 0
-    else:
-        x = int(m["m10"] / m["m00"])
-        y = int(m["m01"] / m["m00"])
-        
-    cv2.circle(image, (x, y), 1, (255, 255, 255), -1)
-    cv2.imshow('', image)
-    cv2.waitKey(1)
-    width = len(image[0])
-    height = len(image)
-    x = -1.0 + x/width*2
-    y = -1.0 + y/height*2
-    return x, y
 
 class VisualReacherMinTimeEnv:
     def __init__(self,
@@ -89,19 +60,11 @@ class VisualReacherMinTimeEnv:
 
     @property
     def image_space(self):
-        # change
-        image_shape = (0, 0, 0)
-        return Box(low=0, high=255, shape=image_shape)
-        #return self._env._observation_space['image']
+        return self._env._observation_space['image']
 
     @property
     def proprioception_space(self):
-        high = self._env._observation_space['joint'].high
-        high = np.append(high, [1, 1])
-        low = self._env._observation_space['joint'].low
-        low = np.append(low, [-1, -1])
-        return Box(low=low, high=high)
-        #return self._env._observation_space['joint']
+        return self._env._observation_space['joint']
 
     @property
     def action_space(self):
@@ -112,21 +75,17 @@ class VisualReacherMinTimeEnv:
 
         obs_dict = self._env.reset()
         image = obs_dict['image']
-        x, y = get_center(image)
         prop = obs_dict['joint']
-        prop = np.append(prop, [x, y])
 
         self._reset = True
 
-        return None, prop
+        return image, prop
 
     def step(self, action):
         assert self._reset
         obs_dict, reward, done, _ = self._env.step(action)
         image = obs_dict['image']
-        x, y = get_center(image)
         prop = obs_dict['joint']
-        prop = np.append(prop, [x, y])
         terminated = done
         done = 0
         info = {}
@@ -139,7 +98,7 @@ class VisualReacherMinTimeEnv:
 
         reward = -1
 
-        return None, prop, reward, done, terminated, info
+        return image, prop, reward, done, terminated, info
 
 if __name__ == '__main__':
     np.random.seed(9)
