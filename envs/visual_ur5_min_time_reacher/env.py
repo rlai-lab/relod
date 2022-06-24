@@ -8,16 +8,16 @@ import math
 
 def get_center(image):
     image = np.transpose(image, [1, 2, 0])[:,:,-3:]
+    image = np.array(image)
     lower = [120, 0, 0]
     upper = [255, 50, 50]
     lower = np.array(lower, dtype="uint8")
     upper = np.array(upper, dtype="uint8")
 
     mask = cv2.inRange(image, lower, upper)
-    cv2.imshow('', mask)
-    cv2.waitKey(0)
+
     m = cv2.moments(mask)
-    if math.isclose(m["m00"], 0.0, 1e-6, 0.0):
+    if math.isclose(m["m00"], 0.0, rel_tol=1e-6, abs_tol=0.0):
         x = 0
         y = 0
     else:
@@ -29,8 +29,8 @@ def get_center(image):
     cv2.waitKey(1)
     width = len(image[0])
     height = len(image)
-    x = -1 + x/width*2
-    y = -1 + y/height*2
+    x = -1.0 + x/width*2
+    y = -1.0 + y/height*2
     return x, y
 
 class VisualReacherMinTimeEnv:
@@ -44,7 +44,7 @@ class VisualReacherMinTimeEnv:
                  target_type='reaching',
                  image_history=3,
                  joint_history=1,
-                 episode_length=40,
+                 episode_length=30,
                  dt=0.04,
                 ):
         
@@ -96,16 +96,16 @@ class VisualReacherMinTimeEnv:
 
     @property
     def proprioception_space(self):
-        dim = self._env._observation_space['joint'].shape[0]+2
-        return Box(low=0, high=255, shape=(dim,))
+        high = self._env._observation_space['joint'].high
+        high = np.append(high, [1, 1])
+        low = self._env._observation_space['joint'].low
+        low = np.append(low, [-1, -1])
+        return Box(low=low, high=high)
         #return self._env._observation_space['joint']
 
     @property
     def action_space(self):
-        low = self._env.action_space.low[0:3]
-        high = self._env.action_space.high[0:3]
-
-        return Box(low=low, high=high)
+        return self._env.action_space
 
     def reset(self):
         assert not self._reset
@@ -122,7 +122,6 @@ class VisualReacherMinTimeEnv:
 
     def step(self, action):
         assert self._reset
-        action = np.append(action, [0, 0])
         obs_dict, reward, done, _ = self._env.step(action)
         image = obs_dict['image']
         x, y = get_center(image)
@@ -143,6 +142,7 @@ class VisualReacherMinTimeEnv:
         return None, prop, reward, done, terminated, info
 
 if __name__ == '__main__':
+    np.random.seed(9)
     env = VisualReacherMinTimeEnv()
     mt = MonitorTarget()
     mt.reset_plot()

@@ -15,6 +15,7 @@ import numpy as np
 import cv2
 
 config = {
+    '''
     'conv': [
         # in_channel, out_channel, kernel_size, stride
         [-1, 32, 3, 2],
@@ -22,7 +23,7 @@ config = {
         [32, 32, 3, 2],
         [32, 32, 3, 1],
     ],
-
+    '''
     'latent': 50,
 
     'mlp': [
@@ -48,7 +49,7 @@ def parse_args():
     parser.add_argument('--image_history', default=3, type=int)
     parser.add_argument('--joint_history', default=1, type=int)
     parser.add_argument('--ignore_joint', default=False, action='store_true')
-    parser.add_argument('--episode_length_time', default=20.0, type=float)
+    parser.add_argument('--episode_length_time', default=30.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
@@ -101,13 +102,13 @@ def main():
         mode = MODE.REMOTE_ONLY
     elif args.mode == 'o':
         mode = MODE.LOCAL_ONLY
-        #mt = MonitorTarget()
+        mt = MonitorTarget()
         
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
     elif args.mode == 'e':
-        #mt = MonitorTarget()
-        #mt.reset_plot()
+        mt = MonitorTarget()
+        mt.reset_plot()
         mode = MODE.EVALUATION
     else:
         raise  NotImplementedError()
@@ -145,20 +146,22 @@ def main():
     )
 
     utils.set_seed_everywhere(args.seed, None)
-    #mt.reset_plot()
-    #mt.reset_plot()
-    #mt.reset_plot()
-    #mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
+    input('go on')
 
     image, prop = env.reset()
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
     args.action_shape = env.action_space.shape
-    args.env_action_space = env.action_space
+    args.env_action_space = env.action_space 
     args.net_params = config
 
     episode_length_step = int(args.episode_length_time / args.dt)
-    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
+    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=
+    args.port)
     agent.send_data(args)
     agent.init_performer(SACRADPerformer, args)
     agent.init_learner(SACRADLearner, args, agent.performer)
@@ -180,10 +183,7 @@ def main():
         args.init_steps = 0
     
     agent.send_init_ob((image, prop))
-    image_to_save = np.transpose(image, [1, 2, 0])
-    image_to_save = image_to_save[:,:,0:3]
-    cv2.imwrite('./0.png', image_to_save)
-    input('go on')
+
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
         if mode == MODE.EVALUATION:
