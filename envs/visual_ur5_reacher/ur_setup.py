@@ -175,7 +175,7 @@ setups = {
                        -30, # shoulder
                         135, # elbow
                         -135, # wrist 1
-                        -45, # wrist 2
+                        -70, # wrist 2
                         190 # wrist 3, fixed
                        ]
                   ),

@@ -57,7 +57,7 @@ def parse_args():
     # train
     parser.add_argument('--init_steps', default=5000, type=int) 
     parser.add_argument('--env_steps', default=200000, type=int)
-    parser.add_argument('--batch_size', default=128, type=int)
+    parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.6, type=float)
     parser.add_argument('--update_every', default=50, type=int)
@@ -66,7 +66,7 @@ def parse_args():
     parser.add_argument('--critic_lr', default=3e-4, type=float)
     parser.add_argument('--critic_tau', default=0.01, type=float)
     parser.add_argument('--critic_target_update_freq', default=1, type=int)
-    parser.add_argument('--bootstrap_terminal', default=1, type=int)
+    parser.add_argument('--bootstrap_terminal', default=0, type=int)
     # actor
     parser.add_argument('--actor_lr', default=3e-4, type=float)
     parser.add_argument('--actor_update_freq', default=1, type=int)
@@ -150,9 +150,12 @@ def main():
     mt.reset_plot()
     mt.reset_plot()
     mt.reset_plot()
-    input('go on')
 
     image, prop = env.reset()
+    image_to_show = np.transpose(image, [1, 2, 0])
+    image_to_show = image_to_show[:,:,-3:]
+    cv2.imshow('', image_to_show)
+    cv2.waitKey(0)
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
     args.action_shape = env.action_space.shape
@@ -182,13 +185,13 @@ def main():
         args.init_steps = 0
     
     agent.send_init_ob((image, prop))
-
+    success = 0
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        if mode == MODE.EVALUATION:
-            image_to_save = np.transpose(image, [1, 2, 0])
-            image_to_save = image_to_save[:,:,0:3]
-            cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
+        image_to_show = np.transpose(image, [1, 2, 0])
+        image_to_show = image_to_show[:,:,-3:]
+        cv2.imshow('', image_to_show)
+        cv2.waitKey(1)
 
         action = agent.sample_action((image, prop), step)
         # step in the environment
@@ -200,12 +203,15 @@ def main():
         agent.push_sample((image, prop), action, reward, (next_image, next_prop), done)
 
         if done or terminated:
+            if done:
+                success += 1
+
             if mode == MODE.LOCAL_ONLY:
                 L.log('train/duration', time.time() - start_time, step)
                 L.log('train/episode_reward', episode_reward, step)
                 L.log('train/episode', episode+1, step)
                 L.dump(step)
-                # mt.reset_plot()
+                mt.reset_plot()
 
             next_image, next_prop = env.reset()
             agent.send_init_ob((next_image, next_prop))
@@ -215,6 +221,8 @@ def main():
             if mode == MODE.EVALUATION:
                 episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
                 mt.reset_plot()
+            success_rate = success / episode
+            print('success rate:', success_rate)
             start_time = time.time()
 
         stat = agent.update_policy(step)

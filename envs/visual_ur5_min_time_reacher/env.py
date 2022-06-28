@@ -90,7 +90,7 @@ class VisualReacherMinTimeEnv:
         done = 0
         info = {}
         info['reward'] = reward
-        if reward >= 1:
+        if reward >= 2:
             done = 1
 
         if done or terminated:
