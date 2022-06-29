@@ -183,7 +183,7 @@ setups = {
                   'accel_max': 1,      # maximum acceleration magnitude of the leading axis using speedj
                   'reset_speed_limit': 0.5,
                   #'q_ref': np.array([ 1.58724391, -2.0, 2.1, -3.01790582, -1.63685572, 3.1415926]),
-                  'q_ref': np.array([ 1.5707, -2.0, 2.17, -3.0415, -1.5707, 3.1415]),
+                  'q_ref': np.array([ 1.5707, -2.0, 2.1, -3.0415, -1.5707, 3.1415]),
                   'box_bound_buffer': 0.001,
                   'angle_bound_buffer': 0.001,
                   'ik_params':

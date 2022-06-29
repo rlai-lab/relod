@@ -40,7 +40,7 @@ def parse_args():
     parser.add_argument('--setup', default='Visual-UR5-min-time')
     parser.add_argument('--env_name', default='Visual-UR5-min-time', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=0, type=int)
+    parser.add_argument('--camera_id', default=2, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='reaching', type=str)
@@ -56,7 +56,7 @@ def parse_args():
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=5000, type=int) 
-    parser.add_argument('--env_steps', default=200000, type=int)
+    parser.add_argument('--env_steps', default=100000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.6, type=float)
@@ -150,7 +150,7 @@ def main():
     mt.reset_plot()
     mt.reset_plot()
     mt.reset_plot()
-
+    input('go?')
     image, prop = env.reset()
     image_to_show = np.transpose(image, [1, 2, 0])
     image_to_show = image_to_show[:,:,-3:]
