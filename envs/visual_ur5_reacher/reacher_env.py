@@ -757,10 +757,10 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
             A float reward.
         """
         image = image[:, :, -3:]
-        #lower = [0, 0, 120]
-        #upper = [50, 50, 255]
-        lower = [120, 0, 0]
-        upper = [255, 50, 50]
+        lower = [0, 0, 120]
+        upper = [50, 50, 255]
+        #lower = [120, 0, 0]
+        #upper = [255, 50, 50]
         lower = np.array(lower, dtype="uint8")
         upper = np.array(upper, dtype="uint8")
 
