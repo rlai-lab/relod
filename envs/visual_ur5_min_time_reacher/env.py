@@ -17,8 +17,9 @@ class VisualReacherMinTimeEnv:
                  joint_history=1,
                  episode_length=30,
                  dt=0.04,
+                 tol=1
                 ):
-        
+        self._tol = tol
         # state
         np.random.seed(seed)
         rand_state = np.random.get_state()
@@ -90,7 +91,7 @@ class VisualReacherMinTimeEnv:
         done = 0
         info = {}
         info['reward'] = reward
-        if reward >= 0.5:
+        if reward >= self._tol:
             done = 1
 
         if done or terminated:

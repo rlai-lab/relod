@@ -160,7 +160,7 @@ setups = {
                   #'end_effector_high': np.array([0.4, 0.8, 0.8]),
                   'end_effector_low': np.array([-0.25, 0.2, 0.35]),
                   # for origin: -0.1, 0.3, 0.6
-                  'end_effector_high': np.array([0.15, 0.55, 0.7]),
+                  'end_effector_high': np.array([0.15, 0.53, 0.7]),
                   'angles_low':np.pi/180 * np.array(
                       [ 60, # base
                        -120, # shoulder

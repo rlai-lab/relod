@@ -51,6 +51,7 @@ def parse_args():
     parser.add_argument('--ignore_joint', default=False, action='store_true')
     parser.add_argument('--episode_length_time', default=30.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
+    parser.add_argument('--tol', default=1, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -81,7 +82,7 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--appendix', default='min-time', type=str)
+    parser.add_argument('--appendix', default='min-time-random-target', type=str)
     parser.add_argument('--seed', default=9, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
@@ -118,6 +119,7 @@ def main():
 
     args.work_dir += f'/results/{args.env_name}_' \
                      f'dt={args.dt}_bs={args.batch_size}_' \
+                     f'tol={args.tol}_'\
                      f'dim={args.image_width}*{args.image_height}_{args.seed}_'+args.appendix
 
     args.model_dir = args.work_dir+'/model'
@@ -143,6 +145,7 @@ def main():
         joint_history = args.joint_history,
         episode_length = args.episode_length_time,
         dt = args.dt,
+        tol = args.tol
     )
 
     utils.set_seed_everywhere(args.seed, None)
