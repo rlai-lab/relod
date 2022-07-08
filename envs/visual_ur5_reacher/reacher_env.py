@@ -749,7 +749,43 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
         inside_buffer_bound = (np.all(self._end_effector_low + self._box_bound_buffer <= xyz) and \
                                np.all(xyz <= self._end_effector_high - self._box_bound_buffer))
         return inside_bound, inside_buffer_bound, mat, xyz
+    
+    # change
+    # def _compute_reward_(self, image, joint):
+    #     """Computes reward at a given time step.
 
+    #     Returns:
+    #         A float reward.
+    #     """
+    #     image = image[:, :, -3:]
+    #     lower = [0, 0, 120]
+    #     upper = [50, 50, 255]
+    #     #lower = [120, 0, 0]
+    #     #upper = [255, 50, 50]
+    #     lower = np.array(lower, dtype="uint8")
+    #     upper = np.array(upper, dtype="uint8")
+
+    #     mask = cv.inRange(image, lower, upper)
+    #     size_x, size_y = mask.shape
+    #     # reward for reaching task, may not be suitable for tracking
+    #     if 255 in mask:
+    #         xs, ys = np.where(mask == 255.)
+    #         reward_x = 1 / 2  - np.abs(xs - int(size_x / 2)) / size_x
+    #         reward_y = 1 / 2 - np.abs(ys - int(size_y / 2)) / size_y
+    #         reward = np.sum(reward_x * reward_y) / self._image_width / self._image_height
+    #     else:
+    #         reward = 0
+    #     reward *= 800
+    #     reward = np.clip(reward, 0, 4)
+
+    #     '''
+    #     When the joint 4 is perpendicular to the mounting ground:
+    #         joint 0 + joint 4 == 0
+    #         joint 1 + joint 2 + joint 3 == -pi
+    #     '''
+    #     scale = (np.abs(joint[0] + joint[4]) + np.abs(np.pi + np.sum(joint[1:4])))
+    #     return reward - scale
+        
     def _compute_reward_(self, image, joint):
         """Computes reward at a given time step.
 
@@ -765,28 +801,13 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
         upper = np.array(upper, dtype="uint8")
 
         mask = cv.inRange(image, lower, upper)
-        cv.imwrite('test.png', mask)
-        size_x, size_y = mask.shape
-        # reward for reaching task, may not be suitable for tracking
-        if 255 in mask:
-            xs, ys = np.where(mask == 255.)
-            reward_x = 1 / 2  - np.abs(xs - int(size_x / 2)) / size_x
-            reward_y = 1 / 2 - np.abs(ys - int(size_y / 2)) / size_y
-            reward = np.sum(reward_x * reward_y) / self._image_width / self._image_height
-        else:
-            reward = 0
-        reward *= 800
-        reward = np.clip(reward, 0, 4)
+        contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        cv.fillPoly(mask, pts=contours, color=(255, 255, 255))
+        cv.imshow('mask', mask)
+        cv.waitKey(1)
+        target_size = np.sum(mask/255.) / mask.size
 
-        '''
-        When the joint 4 is perpendicular to the mounting ground:
-            joint 0 + joint 4 == 0
-            joint 1 + joint 2 + joint 3 == -pi
-        '''
-        scale = (np.abs(joint[0] + joint[4]) + np.abs(np.pi + np.sum(joint[1:4])))
-        return reward - scale
-
-
+        return target_size
 
     def _check_done(self):
         """Checks whether the episode is over.
