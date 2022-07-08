@@ -51,13 +51,13 @@ def parse_args():
     parser.add_argument('--ignore_joint', default=False, action='store_true')
     parser.add_argument('--episode_length_time', default=30.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
-    parser.add_argument('--tol', default=1, type=float)
+    parser.add_argument('--tol', default=0.01, type=float)
     # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
+    parser.add_argument('--replay_buffer_capacity', default=300000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=5000, type=int) 
-    parser.add_argument('--env_steps', default=100000, type=int)
+    parser.add_argument('--env_steps', default=60000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.6, type=float)
@@ -157,7 +157,7 @@ def main():
     image, prop = env.reset()
     image_to_show = np.transpose(image, [1, 2, 0])
     image_to_show = image_to_show[:,:,-3:]
-    cv2.imshow('', image_to_show)
+    cv2.imshow('raw', image_to_show)
     cv2.waitKey(0)
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
@@ -193,7 +193,7 @@ def main():
     for step in range(args.env_steps + args.init_steps):
         image_to_show = np.transpose(image, [1, 2, 0])
         image_to_show = image_to_show[:,:,-3:]
-        cv2.imshow('', image_to_show)
+        cv2.imshow('raw', image_to_show)
         cv2.waitKey(1)
 
         action = agent.sample_action((image, prop), step)

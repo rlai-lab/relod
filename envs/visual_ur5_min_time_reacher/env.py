@@ -17,7 +17,7 @@ class VisualReacherMinTimeEnv:
                  joint_history=1,
                  episode_length=30,
                  dt=0.04,
-                 tol=1
+                 tol=0.02
                 ):
         self._tol = tol
         # state
@@ -102,19 +102,17 @@ class VisualReacherMinTimeEnv:
         return image, prop, reward, done, terminated, info
 
 if __name__ == '__main__':
-    np.random.seed(9)
-    env = VisualReacherMinTimeEnv()
+    np.random.seed(0)
+    env = VisualReacherMinTimeEnv(camera_id=2)
     mt = MonitorTarget()
     mt.reset_plot()
     mt.reset_plot()
-    mt.reset_plot()
-    mt.reset_plot()
+    input('go?')
     env.reset()
     success, episodes = 0, 0
     while episodes <= 20:
         action = env.action_space.sample()
         image, prop, reward, done, terminated, info = env.step(action)
-        print('reward:', info['reward'])
         
         if done or terminated:
             episodes += 1
