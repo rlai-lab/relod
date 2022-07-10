@@ -83,7 +83,7 @@ def parse_args():
     parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--appendix', default='min-time-random-target', type=str)
-    parser.add_argument('--seed', default=9, type=int)
+    parser.add_argument('--seed', default=5, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
