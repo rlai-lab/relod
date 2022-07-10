@@ -36,10 +36,10 @@ config = {
 def parse_args():
     parser = argparse.ArgumentParser(description='Local remote visual UR5 Reacher')
     # environment
-    parser.add_argument('--setup', default='Visual-UR5')
+    parser.add_argument('--setup', default='Visual-UR5-min-time')
     parser.add_argument('--env_name', default='Visual-UR5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=0, type=int)
+    parser.add_argument('--camera_id', default=2, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='reaching', type=str)
@@ -101,10 +101,7 @@ def main():
     elif args.mode == 'o':
         mode = MODE.LOCAL_ONLY
         mt = MonitorTarget()
-        mt.reset_plot()
-        mt.reset_plot()
-        mt.reset_plot()
-        mt.reset_plot()
+        
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
     elif args.mode == 'e':
@@ -148,8 +145,16 @@ def main():
     )
 
     utils.set_seed_everywhere(args.seed, None)
-    
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
+    input('go?')
     obs, state = env.reset()
+    image_to_show = np.transpose(image, [1, 2, 0])
+    image_to_show = image_to_show[:,:,-3:]
+    cv2.imshow('raw', image_to_show)
+    cv2.waitKey(0)
     args.image_shape = env.observation_space.shape
     args.proprioception_shape = env.state_space.shape
     args.action_shape = env.action_space.shape
@@ -180,16 +185,13 @@ def main():
         args.init_steps = 0
     
     agent.send_init_ob((obs, state))
-    image_to_save = np.transpose(obs, [1, 2, 0])
-    image_to_save = image_to_save[:,:,0:3]
-    cv2.imwrite('./0.png', image_to_save)
-    input('go on')
+    
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        if mode == MODE.EVALUATION:
-            image_to_save = np.transpose(obs, [1, 2, 0])
-            image_to_save = image_to_save[:,:,0:3]
-            cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
+        image_to_show = np.transpose(image, [1, 2, 0])
+        image_to_show = image_to_show[:,:,-3:]
+        cv2.imshow('raw', image_to_show)
+        cv2.waitKey(1)
 
         action = agent.sample_action((obs, state), step)
 
