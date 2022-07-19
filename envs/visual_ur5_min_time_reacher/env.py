@@ -1,4 +1,4 @@
-from envs.visual_ur5_reacher.reacher_env import ReacherEnv
+from envs.visual_ur5_reacher.reacher_env_min_time import ReacherEnv
 import numpy as np
 from senseact.utils import NormalizedEnv
 from remote_learner_ur5 import MonitorTarget
