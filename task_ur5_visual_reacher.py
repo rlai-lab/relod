@@ -55,7 +55,7 @@ def parse_args():
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int) 
-    parser.add_argument('--env_steps', default=100000, type=int)
+    parser.add_argument('--env_steps', default=60000, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=2, type=float)
@@ -78,7 +78,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--seed', default=9, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -86,7 +86,7 @@ def parse_args():
     parser.add_argument('--save_model', default=True, action='store_true')
     #parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=-1, type=int)
+    parser.add_argument('--load_model', default=60999, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
 
@@ -151,7 +151,7 @@ def main():
     mt.reset_plot()
     input('go?')
     obs, state = env.reset()
-    image_to_show = np.transpose(image, [1, 2, 0])
+    image_to_show = np.transpose(obs, [1, 2, 0])
     image_to_show = image_to_show[:,:,-3:]
     cv2.imshow('raw', image_to_show)
     cv2.waitKey(0)
@@ -188,7 +188,7 @@ def main():
     
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        image_to_show = np.transpose(image, [1, 2, 0])
+        image_to_show = np.transpose(obs, [1, 2, 0])
         image_to_show = image_to_show[:,:,-3:]
         cv2.imshow('raw', image_to_show)
         cv2.waitKey(1)
