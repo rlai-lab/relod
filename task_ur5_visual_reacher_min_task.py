@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument('--camera_id', default=2, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
-    parser.add_argument('--target_type', default='reaching', type=str)
+    parser.add_argument('--target_type', default='center', type=str)
     parser.add_argument('--random_action_repeat', default=1, type=int)
     parser.add_argument('--agent_action_repeat', default=1, type=int)
     parser.add_argument('--image_history', default=3, type=int)
@@ -51,7 +51,7 @@ def parse_args():
     parser.add_argument('--ignore_joint', default=False, action='store_true')
     parser.add_argument('--episode_length_time', default=30.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
-    parser.add_argument('--tol', default=0.015, type=float)
+    parser.add_argument('--tol', default=0.1, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -82,7 +82,7 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--appendix', default='min-time-random-target', type=str)
+    parser.add_argument('--appendix', default='center', type=str)
     parser.add_argument('--seed', default=8, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
