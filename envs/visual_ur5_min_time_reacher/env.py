@@ -120,6 +120,7 @@ class VisualReacherMinTimeEnv:
         Returns:
             A float reward.
         """
+        image = np.transpose(image, [1,2,0])
         image = image[:, :, -3:]
         lower = [0, 0, 120]
         upper = [50, 50, 255]
@@ -127,6 +128,9 @@ class VisualReacherMinTimeEnv:
         upper = np.array(upper, dtype="uint8")
 
         mask = cv2.inRange(image, lower, upper)
+        cv2.imshow('', mask)
+        cv2.waitKey(1)
+        
         size_x, size_y = mask.shape
         # reward for reaching task, may not be suitable for tracking
         if 255 in mask:
@@ -177,7 +181,6 @@ class VisualReacherMinTimeEnv:
         obs_dict, reward, done, _ = self._env.step(action)
         image = obs_dict['image']
         prop = obs_dict['joint']
-        terminated = done
         done = 0
         info = {}
 
@@ -188,7 +191,7 @@ class VisualReacherMinTimeEnv:
             done = offset[0] <= self._center_tol*2 and offset[1] <= self._center_tol*2
         elif self._target_type == 'reward':
             r = self._compute_reward(image, prop)
-            print('r:',r)
+            # print('r:',r)
             done = r >= self._reward_tol
         elif self._target_type == 'size_center':
             offset = self._compute_target_offset(image, (0, 0))
@@ -197,12 +200,12 @@ class VisualReacherMinTimeEnv:
         else:
             raise NotImplementedError()
 
-        if done or terminated:
+        if done:
             self._reset = False
 
         reward = -1
 
-        return image, prop, reward, done, terminated, info
+        return image, prop, reward, done, info
 
 if __name__ == '__main__':
     np.random.seed(0)
