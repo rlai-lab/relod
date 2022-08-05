@@ -1,8 +1,8 @@
-# remote-onboard-agent
-An efficient remote-onboard architecture for real-time Reinforcement Learning
+# ReLoD: The _Re_mote-_Lo_cal _D_istributed System for Real-time Reinforcement Learning on Vision-Based Robotics Tasks
 
+Real-time Reinforcement Learning for Vision-Based Robotics Utilizing Local and Remote Computers
 
-### Installation instructions
+## Installation instructions
 ```bash
 conda create --name rtrl python=3.6
 conda activate rtrl
@@ -11,3 +11,7 @@ pip install termcolor tensorboardX
 conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 ```
 
+## Cite
+```bash
+
+```
