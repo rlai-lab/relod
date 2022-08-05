@@ -1,4 +1,4 @@
-# ReLoD: The _Re_mote-_Lo_cal _D_istributed System for Real-time Reinforcement Learning on Vision-Based Robotics Tasks
+# ReLoD: The Remote-Local Distributed System for Real-time Reinforcement Learning on Vision-Based Robotics Tasks
 
 Real-time Reinforcement Learning for Vision-Based Robotics Utilizing Local and Remote Computers
 
