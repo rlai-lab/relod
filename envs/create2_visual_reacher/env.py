@@ -7,7 +7,7 @@ import time
 import gym
 import logging
 import numpy as np
-import senseact.devices.create2.create2_config as create2_config
+import senseact.devices.create2.create2_config_aligner as create2_config
 from senseact import utils
 
 from multiprocessing import Array, Value
