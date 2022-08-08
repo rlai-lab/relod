@@ -13,6 +13,7 @@ from envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv
 from remote_learner_ur5 import MonitorTarget
 import numpy as np
 import cv2
+from gym.spaces import Box
 
 config = {
     
@@ -38,7 +39,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Local remote visual UR5 Reacher')
     # environment
     parser.add_argument('--setup', default='Visual-UR5-min-time')
-    parser.add_argument('--env', default='Visual-UR5-min-time', type=str)
+    parser.add_argument('--env_name', default='Visual-UR5-min-time', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
     parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--image_width', default=160, type=int)
@@ -53,7 +54,9 @@ def parse_args():
     parser.add_argument('--dt', default=0.04, type=float)
     parser.add_argument('--size_tol', default=0.015, type=float)
     parser.add_argument('--center_tol', default=0.1, type=float)
-    parser.add_argument('--reward_tol', default=2.0, type=float)
+    parser.add_argument('--reward_tol', default=1.0, type=float)
+    # Reset threshold
+    parser.add_argument('--reset_thresh', default=0.9, type=float, help="Action threshold between [-1, 1]")
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -76,7 +79,7 @@ def parse_args():
     # encoder
     parser.add_argument('--encoder_tau', default=0.05, type=float)
     # sac
-    parser.add_argument('--discount', default=1.0, type=float)
+    parser.add_argument('--discount', default=0.995, type=float)
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     # agent
@@ -84,8 +87,8 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--description', default='size_margin=20', type=str)
-    parser.add_argument('--seed', default=8, type=int)
+    parser.add_argument('--appendix', default='size_margin=20_reset_action', type=str)
+    parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
@@ -117,7 +120,7 @@ def main():
         raise  NotImplementedError()
 
     if args.device is '':
-        args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     args.work_dir += f'/results/{args.env_name}_' \
                      f'dt={args.dt}_bs={args.batch_size}_' \
@@ -165,8 +168,9 @@ def main():
     cv2.waitKey(0)
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
-    args.action_shape = env.action_space.shape
-    args.env_action_space = env.action_space
+    args.x_action_dim = env.action_space.shape[0]
+    args.action_shape = (env.action_space.shape[0]+1,)
+    args.env_action_space = Box(-1, 1, shape=args.action_shape)
     args.net_params = config
 
     episode_length_step = int(args.episode_length_time / args.dt)
@@ -192,7 +196,7 @@ def main():
         args.init_steps = 0
     
     agent.send_init_ob((image, prop))
-    success = 0
+    success, n_reset = 0, 0
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
         image_to_show = np.transpose(image, [1, 2, 0])
@@ -201,22 +205,51 @@ def main():
         cv2.waitKey(1)
 
         action = agent.sample_action((image, prop), step)
-        # step in the environment
-        next_image, next_prop, reward, done, terminated, _ = env.step(action)
+        x_action = action[:args.x_action_dim]
+        reset_action = action[-1]
+
+        # Reset action
+        if reset_action > args.reset_thresh:
+            n_reset += 1
+            if mode == MODE.LOCAL_ONLY:
+                L.log('train/duration', time.time() - start_time, step)
+                L.log('train/episode_reward', episode_reward, step)
+                L.log('train/episode', episode+1, step)
+                L.log('train/n_reset', n_reset, step)
+                L.dump(step)
+                mt.reset_plot()
+
+            next_image, next_prop = env.reset()
+            agent.send_init_ob((next_image, next_prop))
+            episode_reward = 0
+            episode_step = 0
+            episode += 1
+            done = 0
+            reward = -60
+            
+            if mode == MODE.EVALUATION:
+                episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
+                mt.reset_plot()
+            success_rate = success / episode
+            print('success rate:', success_rate)
+            start_time = time.time()
+        else:
+            # step in the environment
+            next_image, next_prop, reward, done, _ = env.step(x_action)
 
         episode_reward += reward
         episode_step += 1
         
         agent.push_sample((image, prop), action, reward, (next_image, next_prop), done)
 
-        if done or terminated:
-            if done:
-                success += 1
+        if done:
+            success += 1
 
             if mode == MODE.LOCAL_ONLY:
                 L.log('train/duration', time.time() - start_time, step)
                 L.log('train/episode_reward', episode_reward, step)
                 L.log('train/episode', episode+1, step)
+                L.log('train/n_reset', n_reset, step)
                 L.dump(step)
                 mt.reset_plot()
 
