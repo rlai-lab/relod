@@ -59,6 +59,7 @@ class VisualReacherMinTimeEnv:
                 ):
         self._image_width = image_width
         self._image_height = image_height
+        self._dt = dt
         self._target_type = target_type
         self._size_tol = size_tol
         self._center_tol = center_tol
@@ -166,7 +167,6 @@ class VisualReacherMinTimeEnv:
         return self._env.action_space
 
     def reset(self):
-        assert not self._reset
 
         obs_dict = self._env.reset()
         image = obs_dict['image']

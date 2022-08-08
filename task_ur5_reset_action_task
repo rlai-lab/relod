@@ -58,60 +58,60 @@ class SACExperiment():
     def parse_args(self):
         parser = argparse.ArgumentParser()
         # Task
-        parser.add_argument('--setup', default='Visual-UR5-min-time')
-        parser.add_argument('--env', default="Visual-UR5-min-time", type=str, help="e.g., 'ball_in_cup', 'sparse_reacher', 'Hopper-v2' ")
-        parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-        parser.add_argument('--camera_id', default=0, type=int)
-        parser.add_argument('--image_width', default=160, type=int)
-        parser.add_argument('--image_height', default=90, type=int)
-        parser.add_argument('--target_type', default='reward', type=str)
-        parser.add_argument('--image_history', default=3, type=int)
-        parser.add_argument('--dt', default=0.04, type=float)
-        parser.add_argument('--size_tol', default=0.015, type=float)
-        parser.add_argument('--center_tol', default=0.1, type=float)
-        parser.add_argument('--reward_tol', default=2.0, type=float)
-        parser.add_argument('--seed', default=0, type=int, help="Seed for random number generator")       
-        parser.add_argument('--N', default=120000, type=int, help="# timesteps for the run")
-        parser.add_argument('--timeout', default=500, type=int, help="Timeout for the env")
+        dd parser.add_argument('--setup', default='Visual-UR5-min-time')
+        dd parser.add_argument('--env', default="Visual-UR5-min-time", type=str, help="e.g., 'ball_in_cup', 'sparse_reacher', 'Hopper-v2' ")
+        dd parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
+        dd parser.add_argument('--camera_id', default=0, type=int)
+        dd parser.add_argument('--image_width', default=160, type=int)
+        dd parser.add_argument('--image_height', default=90, type=int)
+        dd parser.add_argument('--target_type', default='reward', type=str)
+        dd parser.add_argument('--image_history', default=3, type=int)
+        dd parser.add_argument('--dt', default=0.04, type=float)
+        dd parser.add_argument('--size_tol', default=0.015, type=float)
+        dd parser.add_argument('--center_tol', default=0.1, type=float)
+        dd parser.add_argument('--reward_tol', default=2.0, type=float)
+        dd parser.add_argument('--seed', default=0, type=int, help="Seed for random number generator")       
+        dd parser.add_argument('--N', default=120000, type=int, help="# timesteps for the run")
+        dd parser.add_argument('--timeout', default=500, type=int, help="Timeout for the env")
         # Reset threshold
-        parser.add_argument('--reset_thresh', default=0.9, type=float, help="Action threshold between [-1, 1]")
+        dd parser.add_argument('--reset_thresh', default=0.9, type=float, help="Action threshold between [-1, 1]")
         # Algorithm
-        parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
-        parser.add_argument('--init_steps', default=5000, type=int)
-        parser.add_argument('--update_every', default=50, type=int)
-        parser.add_argument('--update_epochs', default=50, type=int)
-        parser.add_argument('--batch_size', default=256, type=int)
-        parser.add_argument('--gamma', default=0.995, type=float, help="Discount factor")
-        parser.add_argument('--bootstrap_terminal', default=0, type=int, help="Bootstrap on terminal state")
-        parser.add_argument('--async_mode', default=True, action='store_true')
-        parser.add_argument('--max_updates_per_step', default=0.6, type=float)
+        dd parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
+        dd parser.add_argument('--init_steps', default=5000, type=int)
+        dd parser.add_argument('--update_every', default=50, type=int)
+        dd parser.add_argument('--update_epochs', default=50, type=int)
+        dd parser.add_argument('--batch_size', default=256, type=int)
+        dd parser.add_argument('--gamma', default=0.995, type=float, help="Discount factor")
+        dd parser.add_argument('--bootstrap_terminal', default=0, type=int, help="Bootstrap on terminal state")
+        dd parser.add_argument('--async_mode', default=True, action='store_true')
+        dd parser.add_argument('--max_updates_per_step', default=0.6, type=float)
         ## Actor
-        parser.add_argument('--actor_lr', default=3e-4, type=float)
-        parser.add_argument('--actor_update_freq', default=1, type=int)
+        dd parser.add_argument('--actor_lr', default=3e-4, type=float)
+        dd parser.add_argument('--actor_update_freq', default=1, type=int)
         ## Critic
-        parser.add_argument('--critic_lr', default=3e-4, type=float)
-        parser.add_argument('--critic_tau', default=0.01, type=float)
-        parser.add_argument('--critic_target_update_freq', default=1, type=int)
+        dd parser.add_argument('--critic_lr', default=3e-4, type=float)
+        dd parser.add_argument('--critic_tau', default=0.01, type=float)
+        dd parser.add_argument('--critic_target_update_freq', default=1, type=int)
         ## Entropy
-        parser.add_argument('--init_temperature', default=0.1, type=float)
-        parser.add_argument('--alpha_lr', default=1e-4, type=float)
+        dd parser.add_argument('--init_temperature', default=0.1, type=float)
+        dd parser.add_argument('--alpha_lr', default=1e-4, type=float)
         ## Encoder
-        parser.add_argument('--encoder_tau', default=0.05, type=float)
+        dd parser.add_argument('--encoder_tau', default=0.05, type=float)
         parser.add_argument('--l2_reg', default=0, type=float, help="L2 regularization coefficient")
         # RAD
-        parser.add_argument('--rad_offset', default=0.01, type=float)
+        dd parser.add_argument('--rad_offset', default=0.01, type=float)
         parser.add_argument('--freeze_cnn', default=0, type=int)        
         # Misc
-        parser.add_argument('--work_dir', default='./results', type=str)
-        parser.add_argument('--save_tb', default=False, action='store_true')
-        parser.add_argument('--checkpoint', default=5000, type=int, help="Save plots and rets every checkpoint")
-        parser.add_argument('--load_model', default=-1, type=int)
-        parser.add_argument('--device', default="cuda", type=str)
-        parser.add_argument('--description', default='size_margin=20_reset_action', type=str)
+        dd parser.add_argument('--work_dir', default='./results', type=str)
+        dd parser.add_argument('--save_tb', default=False, action='store_true')
+        dd parser.add_argument('--checkpoint', default=5000, type=int, help="Save plots and rets every checkpoint")
+        dd parser.add_argument('--load_model', default=-1, type=int)
+        dd parser.add_argument('--device', default="cuda", type=str)
+        dd parser.add_argument('--description', default='size_margin=20_reset_action', type=str)
         # agent
-        parser.add_argument('--remote_ip', default='localhost', type=str)
-        parser.add_argument('--port', default=9876, type=int)
-        parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+        dd parser.add_argument('--remote_ip', default='localhost', type=str)
+        dd parser.add_argument('--port', default=9876, type=int)
+        dd parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     
         args = parser.parse_args()
 
@@ -131,7 +131,7 @@ class SACExperiment():
             'mlp': [
                 [-1, 1024],
                 [1024, 1024],
-                [1024, 1024],
+                [1024, 1024], # more layer?
                 [1024, -1]
             ],
         }            
@@ -221,6 +221,9 @@ class SACExperiment():
         agent.init_performer(SACRADPerformer, args)
         agent.init_learner(SACRADLearner, args, agent.performer)
 
+        # sync initial weights with remote
+        agent.apply_remote_policy(block=True)
+
         if args.load_model > -1:
             agent.load_policy_from_file(args.model_dir, args.load_model)
 
@@ -259,7 +262,7 @@ class SACExperiment():
             # Reset action
             if reset_action > self.args.reset_thresh: 
                 n_reset += 1
-                t += 10
+                t += 10 # why?
                 step += 10 # why +10?          
                 next_image, next_prop = self.env.reset()
                 r = -1 # needs to change
