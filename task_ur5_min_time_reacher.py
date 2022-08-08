@@ -31,7 +31,6 @@ def parse_args():
     parser.add_argument('--dt', default=0.04, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=1000000, type=int)
-    # parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=5000, type=int) 
     parser.add_argument('--num_steps', default=120000, type=int)
@@ -56,7 +55,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='129.128.159.22', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)

@@ -12,8 +12,6 @@ import cv2
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    # server
-    parser.add_argument('--args_port', default=9630, type=int)
     # agent
     parser.add_argument('--port', default=9876, type=int)
     # misc
