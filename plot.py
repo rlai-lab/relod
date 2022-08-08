@@ -4,7 +4,7 @@ import statistics as stat
 import pandas
 from os import walk
 
-root = 'curiosity/'
+root = 'results/'
 _, exps, _ = next(walk(root))
 plot_intervals = {
                   "roomba local remote visual reacher": 1600,

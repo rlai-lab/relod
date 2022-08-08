@@ -85,17 +85,13 @@ class RemoteWrapper(BaseWrapper):
             raise NotImplementedError('update_policy: {} mode is not supported'.format(self._mode))
 
     def save_policy_to_file(self, *args, **kwargs):
-        if self._mode == MODE.REMOTE_ONLY:
-            self._performer.save_policy_to_file(*args, **kwargs)
-        elif self._mode == MODE.ONBOARD_REMOTE:
+        if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
             self._learner.save_policy_to_file(*args, **kwargs)
         else:
             raise NotImplementedError('save_policy_to_file: {} mode is not supported'.format(self._mode))
     
     def load_policy_from_file(self, *args, **kwargs):
-        if self._mode == MODE.REMOTE_ONLY:
-            self._performer.load_policy_from_file(*args, **kwargs)
-        elif self._mode == MODE.ONBOARD_REMOTE:
+        if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
             self._learner.load_policy_from_file(*args, **kwargs)
         else:
             raise NotImplementedError('load_policy_to_file: {} mode is not supported'.format(self._mode))

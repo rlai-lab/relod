@@ -85,6 +85,8 @@ def get_all_plot_rets(basepath, fname_part, seeds=np.arange(0, 5, dtype=int)):
 
     return all_x, all_rets
 
+def tick_function(X, dt=0.04):
+    return ["{:.1f}".format(z*dt/60.) for z in X]
 
 def plot_create_reacher():
     setsizes()
@@ -102,72 +104,102 @@ def plot_create_reacher():
     seeds = np.arange(0, 5, dtype=int)
     colors = ['tab:blue', 'tab:orange']
 
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax2 = ax1.twiny()
+
     for i, (bp, fnp) in enumerate(zip(basepaths, fname_parts)):
         all_x, all_rets = get_all_plot_rets(basepath=bp, fname_part=fnp, seeds=seeds)
         for x, rets in zip(all_x, all_rets):
-            plt.plot(x, rets, color=colors[i], linewidth=0.6, alpha=0.75)
+            ax1.plot(x, rets, color=colors[i], linewidth=0.6, alpha=0.75)
         avg_rets = np.mean(np.array(all_rets), axis=0)
-        plt.plot(all_x[0], avg_rets, label=labels[i])
+        ax1.plot(all_x[0], avg_rets, label=labels[i], color=colors[i])
 
     plt.locator_params(axis='x', nbins=5)
-    plt.title("Create-Reacher", fontsize=15, fontweight='bold')
-    ax = plt.gca()
-    plt.legend()
+    ax1.set_title("Create-Reacher", fontsize=15, fontweight='bold', pad=10)
+    ax1.legend(loc="best")
+    # Set number of tick labels
+    ax1.xaxis.set_major_locator(plt.MaxNLocator(6)) 
     # ax.tick_params(axis='x', labelrotation=90)
-    save_path = "/Users/gautham/Pictures/remote-onboard-agent/create_reacher_all_runs.png"
-    plt.grid()
-    plt.xlabel('Timesteps', fontsize=14, fontweight='bold')
-    h = plt.ylabel("Average\nEpisodic\nReturn", labelpad=40, fontsize=14, fontweight='bold')
+
+    all_ax2_ticks = tick_function(all_x[0])
+    ax2_ticks = []
+    for i in range(0, len(all_ax2_ticks), 4):
+        ax2_ticks.append(all_ax2_ticks[i])
+    
+    ax2.set_xticks(ax1.get_xticks())
+    ax2.set_xbound(ax1.get_xbound())
+    ax2.set_xticklabels([round(x * 0.045/60., 1) for x in ax1.get_xticks()])
+    ax2.set_xlabel("Real Experience Time (mins)", fontsize=14, fontweight='bold', labelpad=10)
+
+    save_path = "/Users/gautham/Pictures/remote-onboard-agent/iros_create_reacher.png"
+    ax1.grid()
+    ax1.set_xlabel('Timesteps', fontsize=14, fontweight='bold')
+    h = ax1.set_ylabel("Average\nEpisodic\nReturn", labelpad=40, fontsize=14, fontweight='bold')
     h.set_rotation(0)
-    plt.tight_layout()
+    fig.tight_layout()
     plt.savefig(save_path)
 
-    # plt.show()
+    plt.show()
 
 def plot_ur5_reacher():
     setsizes()
     setaxes()
 
     bp1 = "/Users/gautham/src/data_rl/remote_onboard/paper results/onboard remote/UR5/"
-    bp2 = "/Users/gautham/src/data_rl/remote_onboard/paper results/remote only/ur5/"
-    bp3 = "/Users/gautham/src/data_rl/remote_onboard/paper results/paper_local_only/buffer=2500/"
-    bp4 = "/Users/gautham/src/data_rl/remote_onboard/paper results/paper_local_only/buffer=5000/"
-    bp5 = "/Users/gautham/src/data_rl/remote_onboard/paper results/paper_local_only/buffer=15000/"
+    bp2 = "/Users/gautham/src/data_rl/remote_onboard/paper results/remote only/ur5/"    
+    bp3 = "/Users/gautham/src/data_rl/remote_onboard/paper results/max=0.08, buffer=16000, batch=64"
+    bp4 = "/Users/gautham/src/data_rl/remote_onboard/paper results/paper_local_only/buffer=15000/"
+    bp5 = "/Users/gautham/src/data_rl/remote_onboard/paper results/max=0.15, buffer=16000, batch=32"
     fnp1 = "/Visual-UR5_reaching_dt=0.04_bs=128_dim=160_90_{}/train.log"
     fnp2 = "/Visual-UR5_reaching_dt=0.04_bs=128_dim=160_90_{}/train.log"
     fnp3 = "/Visual-UR5_reaching_dt=0.04_bs=64_dim=160_90_{}/train.log"
     fnp4 = "/Visual-UR5_reaching_dt=0.04_bs=64_dim=160_90_{}/train.log"
-    fnp5 = "/Visual-UR5_reaching_dt=0.04_bs=64_dim=160_90_{}/train.log"
+    fnp5 = "/Visual-UR5_reaching_dt=0.04_bs=32_dim=160_90_{}/train.log"
 
-    basepaths = [bp1, bp2, bp3, bp4, bp5]
-    fname_parts = [fnp1, fnp2, fnp3, fnp4, fnp5]
-    labels = ["remote-local", "remote-only", "local-only-2.5K", "local-only-5K", "local-only-15K"]
-    colors = ['tab:blue', 'tab:orange', "tab:green", "tab:cyan", "tab:red"]
+    basepaths = [bp1, bp2, bp3, bp4]
+    fname_parts = [fnp1, fnp2, fnp3, fnp4]
+    labels = ["remote-local", "remote-only", "local-only-constrained", "local-only-full", "local-only-constrained2"]
+    colors = ['tab:blue', 'tab:orange', "tab:green", "tab:purple", "tab:red"]
 
     seeds = np.arange(0, 5, dtype=int)
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax2 = ax1.twiny()
 
     for i, (bp, fnp) in enumerate(zip(basepaths, fname_parts)):
         all_x, all_rets = get_all_plot_rets(basepath=bp, fname_part=fnp, seeds=seeds)
         for x, rets in zip(all_x, all_rets):
-            plt.plot(x, rets, color=colors[i], linewidth=0.6, alpha=0.75)
+            ax1.plot(x, rets, color=colors[i], linewidth=0.6, alpha=0.75)
         avg_rets = np.mean(np.array(all_rets), axis=0)
-        plt.plot(all_x[0], avg_rets, label=labels[i])
+        ax1.plot(all_x[0], avg_rets, label=labels[i], color=colors[i])
 
     plt.locator_params(axis='x', nbins=5)
-    plt.title("UR5-VisualReacher", fontsize=15, fontweight='bold')
-    ax = plt.gca()
-    plt.legend()
+    ax1.set_title("UR5-VisualReacher", fontsize=15, fontweight='bold', pad=10)
+    ax1.legend(loc="upper left")
     # ax.tick_params(axis='x', labelrotation=90)
-    save_path = "/Users/gautham/Pictures/remote-onboard-agent/ur5_reacher_all_runs.png"
-    plt.grid()
-    plt.xlabel('Timesteps', fontsize=14, fontweight='bold')
-    h = plt.ylabel("Average\nEpisodic\nReturn", labelpad=40, fontsize=14, fontweight='bold')
+
+    all_ax2_ticks = tick_function(all_x[0])
+    ax2_ticks = []
+    for i in range(0, len(all_ax2_ticks), 4):
+        ax2_ticks.append(all_ax2_ticks[i])
+    
+    ax2.set_xticks(ax1.get_xticks())
+    ax2.set_xbound(ax1.get_xbound())
+    ax2.set_xticklabels([round(x * 0.04/60., 1) for x in ax1.get_xticks()])
+    ax2.set_xlabel("Real Experience Time (mins)", fontsize=14, fontweight='bold', labelpad=10)
+
+    save_path = "/Users/gautham/Pictures/remote-onboard-agent/iros_ur5_reacher.png"
+    ax1.grid()
+    ax1.set_xlabel('Timesteps', fontsize=14, fontweight='bold')
+    h = ax1.set_ylabel("Average\nEpisodic\nReturn", labelpad=40, fontsize=14, fontweight='bold')
     h.set_rotation(0)
-    plt.tight_layout()
-    # plt.savefig(save_path)
+    fig.tight_layout()
+    plt.savefig(save_path)
 
     plt.show()
 
 if __name__ == '__main__':
-    # plot_create_reacher()
-    plot_ur5_reacher()
+    plot_create_reacher()
+    # plot_ur5_reacher()

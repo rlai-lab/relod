@@ -16,6 +16,7 @@ class MonitorTarget:
         self.radius=7
         self.width=160
         self.height=90
+        self.margin = 20
         mpl.rcParams['toolbar'] = 'None'
         plt.ion()
         self.fig = plt.figure()
@@ -32,8 +33,8 @@ class MonitorTarget:
     def reset_plot(self):
         x, y = np.random.random(2)
         self.target.set_center(
-            (self.radius + x * (self.width - 2 * self.radius),
-             self.radius + y * (self.height - 2 * self.radius))
+            (self.radius + self.margin + x * (self.width - 2*self.radius - 2*self.margin),
+             self.radius + self.margin + y * (self.height - 2*self.radius - 2*self.margin))
         )
 
         self.fig.canvas.draw()
@@ -58,6 +59,10 @@ def main():
 
     # Monitor
     mt = MonitorTarget()
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
+    mt.reset_plot()
     mt.reset_plot()
 
     agent = RemoteWrapper(port=server_args.port)
@@ -118,13 +123,13 @@ def main():
         (image, propri) = (next_image, next_propri)
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(step)
+            agent.save_policy_to_file(args.model_dir, step)
         
         if step > args.init_steps and (step+1) % args.update_every == 0:
             agent.send_policy()
 
     if args.save_model:
-        agent.save_policy_to_file(step)
+        agent.save_policy_to_file(args.model_dir, step)
     agent.close()
     print('Train finished')
 
