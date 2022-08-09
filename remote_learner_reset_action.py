@@ -67,6 +67,8 @@ def main():
         if done:
             L.log('train/duration', time.time() - start_time, step)
             L.log('train/episode_reward', episode_reward, step)
+            L.log('train/episode', episode+1, step)
+            L.log('train/n_reset', n_reset, step)
             L.dump(step)
             agent.learner.pause_update()
             (next_image, next_prop) = agent.receive_init_ob()
@@ -74,7 +76,6 @@ def main():
             episode_reward = 0
             episode_step = 0
             episode += 1
-            L.log('train/episode', episode, step)
             start_time = time.time()
             
         stat = agent.update_policy(step)
