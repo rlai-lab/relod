@@ -190,8 +190,6 @@ def main():
         episode_reward += reward
         episode_step += 1
 
-        done = False if episode_step == episode_length_step else done
-
         agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
 
         if done or (episode_step == episode_length_step): # set time out here
