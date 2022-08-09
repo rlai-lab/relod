@@ -202,14 +202,14 @@ def main():
 
         action = agent.sample_action((image, prop), step)
         # step in the environment
-        next_image, next_prop, reward, done, terminated, _ = env.step(action)
+        next_image, next_prop, reward, done, _ = env.step(action)
 
         episode_reward += reward
         episode_step += 1
         
         agent.push_sample((image, prop), action, reward, (next_image, next_prop), done)
 
-        if done or terminated:
+        if done or (episode_step == episode_length_step): # set time out here
             if done:
                 success += 1
 
