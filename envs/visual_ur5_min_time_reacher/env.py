@@ -156,11 +156,11 @@ class VisualReacherMinTimeEnv:
 
     @property
     def image_space(self):
-        return self._env._observation_space['image']
+        return self._env.observation_space['image']
 
     @property
     def proprioception_space(self):
-        return self._env._observation_space['joint']
+        return self._env.observation_space['joint']
 
     @property
     def action_space(self):
