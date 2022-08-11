@@ -184,6 +184,7 @@ def main():
 
         # First inference took a while (~1 min), do it before the agent-env interaction loop
         if mode != MODE.REMOTE_ONLY and step == 0:
+            print('first inference.')
             agent.performer.sample_action((image, prop), args.init_steps+1)
         
         agent.send_init_ob((image, prop))
