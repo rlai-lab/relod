@@ -463,11 +463,11 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         super().close()
 
 if __name__ == '__main__':
-    env = Create2VisualReacherEnv(episode_length_time=60, dt=0.045, image_shape=(9, 120, 160), camera_id=0, min_target_size=0.1)
+    env = Create2VisualReacherEnv(episode_length_time=60, dt=0.045, image_shape=(9, 120, 160), camera_id=0, min_target_size=0.2)
     env.start()
 
     env.reset()
-    for i in range(10000):
+    for i in range(10000000):
         a = env.action_space.sample()
         (image, _), _, done, _ = env.step([0,0])
         

@@ -73,7 +73,7 @@ def parse_args():
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     # agent
-    parser.add_argument('--remote_ip', default='192.168.0.103', type=str)
+    parser.add_argument('--remote_ip', default='192.168.0.104', type=str)
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
