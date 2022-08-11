@@ -150,6 +150,7 @@ def main():
 
     args.image_shape = env.image_space.shape
     args.proprioception_shape = (env.proprioception_space.shape[0]+1,)
+    print(args.proprioception_shape)
     args.x_action_dim = env.action_space.shape[0]
     args.action_shape = (env.action_space.shape[0]+1,)    
     args.net_params = config
@@ -166,10 +167,6 @@ def main():
 
     if args.load_model > -1:
         agent.load_policy_from_file(args.model_dir, args.load_model)
-    
-    # First inference took a while (~1 min), do it before the agent-env interaction loop
-    if mode != MODE.REMOTE_ONLY:
-        agent.performer.sample_action((image, prop), args.init_steps+1)
 
     if mode == MODE.EVALUATION and args.load_model > -1:
         args.init_steps = 0
@@ -184,8 +181,13 @@ def main():
         ret, episode_step, n_reset, done = 0, 0, 0, 0
         (image, prop) = env.reset()
         prop = append_time(prop, episode_step)
-        agent.send_init_ob((image, prop))
+
+        # First inference took a while (~1 min), do it before the agent-env interaction loop
+        if mode != MODE.REMOTE_ONLY and step == 0:
+            agent.performer.sample_action((image, prop), args.init_steps+1)
         
+        agent.send_init_ob((image, prop))
+
         # start the interaction loop
         start_time = time.time()
         while not done:
