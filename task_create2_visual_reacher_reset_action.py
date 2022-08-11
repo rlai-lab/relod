@@ -149,7 +149,7 @@ def main():
     env.start()
 
     args.image_shape = env.image_space.shape
-    args.proprioception_shape = env.proprioception_space.shape
+    args.proprioception_shape = (env.proprioception_space.shape[0]+1,)
     args.x_action_dim = env.action_space.shape[0]
     args.action_shape = (env.action_space.shape[0]+1,)    
     args.net_params = config

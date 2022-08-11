@@ -46,52 +46,60 @@ def main():
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
-    episode, episode_reward, episode_step, n_reset = 0, 0, 0, 0
-    (image, prop) = agent.receive_init_ob()
-    
-    start_time = time.time()
-    for step in range(args.env_steps + args.init_steps):
-        action = agent.sample_action((image, prop), step)
-        reset_action = action[-1]
+    episodes = 0
+    step = 0    
+    while step < args.env_steps: 
+        # start a new episode
+        ret, episode_step, n_reset, done = 0, 0, 0, 0
+        agent.learner.pause_update()
+        (image, prop) = agent.receive_init_ob()
+        agent.learner.resume_update()
 
-        if reset_action > args.reset_thresh:
-            n_reset += 1
-            print('n_reset:', n_reset)
-            agent.send_cmd('received') # sync here to avoid full queue
-        
-        (reward, (next_image, next_prop), done, kwargs) = agent.receive_sample_from_onboard()
-        
-        episode_reward += reward
-        episode_step += 1
+        # start the interaction loop
+        start_time = time.time()
+        while not done:
+            action = agent.sample_action((image, prop), step)
+            reset_action = action[-1]
 
-        agent.push_sample((image, prop), action, reward, (next_image, next_prop), done, **kwargs)
+            # Reset action
+            if reset_action > args.reset_thresh:
+                n_reset += 1
+                print('n_reset:', n_reset)
+                episode_step += 80 - 1
+                step += 80 - 1
+                agent.send_cmd('received') # sync here to avoid full queue
 
-        if done:
-            L.log('train/duration', time.time() - start_time, step)
-            L.log('train/episode_reward', episode_reward, step)
-            L.log('train/episode', episode+1, step)
-            L.log('train/n_reset', n_reset, step)
-            L.dump(step)
-            agent.learner.pause_update()
-            (next_image, next_prop) = agent.receive_init_ob()
+            agent.learner.pause_update() # agent may reset and charge
+            (reward, (next_image, next_prop), done, kwargs) = agent.receive_sample_from_onboard()
             agent.learner.resume_update()
-            episode_reward = 0
-            episode_step = 0
-            episode += 1
-            start_time = time.time()
+
+            ret += reward
+            episode_step += 1
+            step += 1
+
+            agent.push_sample((image, prop), action, reward, (next_image, next_prop), done, **kwargs)
             
-        stat = agent.update_policy(step)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
+            stat = agent.update_policy(step)
+            if stat is not None:
+                for k, v in stat.items():
+                    L.log(k, v, step)
 
-        (image, prop) = (next_image, next_prop)
+            (image, prop) = (next_image, next_prop)
 
-        if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(args.model_dir, step)
-        
-        if step > args.init_steps and (step+1) % args.update_every == 0:
-            agent.send_policy()
+            if args.save_model and (step+1) % args.save_model_freq == 0:
+                agent.save_policy_to_file(args.model_dir, step)
+
+            if step > args.init_steps and step % args.update_every == 0:
+                agent.send_policy()
+
+        # after an episode is done, log info
+        L.log('train/duration', time.time() - start_time, step)
+        L.log('train/episode_reward', ret, step)
+        L.log('train/episode', episodes, step)
+        L.log('train/n_reset', n_reset, step)
+        L.dump(step)
+
+        episodes += 1
 
     if args.save_model:
         agent.save_policy_to_file(args.model_dir, step)
