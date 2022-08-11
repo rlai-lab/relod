@@ -15,6 +15,7 @@ from envs.create2_visual_reacher.env import Create2VisualReacherEnv
 import numpy as np
 import cv2
 from gym.spaces import Box
+from utils import append_time
 
 config = {
     'conv': [
@@ -166,11 +167,8 @@ def main():
     if args.load_model > -1:
         agent.load_policy_from_file(args.model_dir, args.load_model)
             
-    episode, episode_reward, episode_step, n_reset = 0, 0, 0, 0
     if mode == MODE.EVALUATION:
         episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
-    
-    (image, prop) = env.reset()
 
     # First inference took a while (~1 min), do it before the agent-env interaction loop
     if mode != MODE.REMOTE_ONLY:
@@ -179,68 +177,76 @@ def main():
     if mode == MODE.EVALUATION and args.load_model > -1:
         args.init_steps = 0
     
-    agent.send_init_ob((image, prop))
-    start_time = time.time()
-    for step in range(args.env_steps + args.init_steps):
+    episodes = 0
+    step = 0
+    while step < args.env_steps: 
+        # start a new episode
+        ret, episode_step, n_reset, done = 0, 0, 0, 0
+        (image, prop) = env.reset()
+        prop = append_time(prop, episode_step)
+        agent.send_init_ob((image, prop))
+        
+        # start the interaction loop
+        start_time = time.time()
+        while not done:
+            if mode == MODE.EVALUATION:
+                image_to_save = np.transpose(image, [1, 2, 0])
+                image_to_save = image_to_save[:,:,0:3]
+                cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
+
+            action = agent.sample_action((image, prop), step)
+            x_action = action[:args.x_action_dim]
+            reset_action = action[-1]
+    
+            # Reset action
+            if reset_action > args.reset_thresh:
+                n_reset += 1
+                episode_step += 80 - 1
+                step += 80 - 1
+                done = 0
+                reward = -80
+
+                next_image, next_prop = env.reset()
+                assert agent.recv_cmd() == 'received' # sync here to avoid full queue
+            
+                if mode == MODE.EVALUATION:
+                    episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episodes)))
+            else:
+                # step in the environment
+                (next_image, next_prop), reward, done, _ = env.step(x_action)
+
+            ret += reward
+            episode_step += 1
+            step += 1
+            next_prop = append_time(next_prop, episode_step)
+
+            agent.push_sample((image, prop), action, reward, (next_image, next_prop), done)              
+  
+            stat = agent.update_policy(step)
+            if stat is not None:
+                for k, v in stat.items():
+                    L.log(k, v, step)
+        
+            image = next_image
+            prop = next_prop
+
+            if args.save_model and step % args.save_model_freq == 0:
+                agent.save_policy_to_file(args.model_dir, step)
+
+        # after an episode is done, log info
+        if mode == MODE.LOCAL_ONLY:
+            L.log('train/duration', time.time() - start_time, step)
+            L.log('train/episode_reward', ret, step)
+            L.log('train/episode', episodes, step)
+            L.log('train/n_reset', n_reset, step)
+            L.dump(step)
+
         if mode == MODE.EVALUATION:
-            image_to_save = np.transpose(image, [1, 2, 0])
-            image_to_save = image_to_save[:,:,0:3]
-            cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
+            episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episodes)))
 
-        action = agent.sample_action((image, prop), step)
-        x_action = action[:args.x_action_dim]
-        reset_action = action[-1]
-
-        # Reset action
-        if reset_action > args.reset_thresh:
-            n_reset += 1
-            done = 0
-            reward = -60
-
-            next_image, next_prop = env.reset()
-            assert agent.recv_cmd() == 'received' # sync here to avoid full queue
-            
-            if mode == MODE.EVALUATION:
-                episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
-
-        else:
-            # step in the environment
-            (next_image, next_prop), reward, done, _ = env.step(x_action)
-
-        episode_reward += reward
-        episode_step += 1
-
-        agent.push_sample((image, prop), action, reward, (next_image, next_prop), done)
-
-        if done:
-            if mode == MODE.LOCAL_ONLY:
-                L.log('train/duration', time.time() - start_time, step)
-                L.log('train/episode_reward', episode_reward, step)
-                L.log('train/episode', episode+1, step)
-                L.log('train/n_reset', n_reset, step)
-                L.dump(step)
-
-            (next_image, next_prop) = env.reset()
-            agent.send_init_ob((next_image, next_prop))
-            episode_reward = 0
-            episode_step = 0
-            episode += 1
-            if mode == MODE.EVALUATION:
-                episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
-            
-            start_time = time.time()
-        
-        stat = agent.update_policy(step)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
-        
-        image = next_image
-        prop = next_prop
-
-        if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(args.model_dir, step)
-
+        episodes += 1
+    
+    # after training, save the model
     if args.save_model:
         agent.save_policy_to_file(args.model_dir, step)
 
