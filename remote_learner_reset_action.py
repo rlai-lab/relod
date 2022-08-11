@@ -65,8 +65,8 @@ def main():
             if reset_action > args.reset_thresh:
                 n_reset += 1
                 print('n_reset:', n_reset)
-                episode_step += 80 - 1
-                step += 80 - 1
+                episode_step += 80-1
+                step += 80-1
                 agent.send_cmd('received') # sync here to avoid full queue
 
             agent.learner.pause_update() # agent may reset and charge

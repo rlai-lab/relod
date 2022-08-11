@@ -201,8 +201,8 @@ def main():
             # Reset action
             if reset_action > args.reset_thresh:
                 n_reset += 1
-                episode_step += 80 - 1
-                step += 80 - 1
+                episode_step += 80-1
+                step += 80-1
                 done = 0
                 reward = -80
 
