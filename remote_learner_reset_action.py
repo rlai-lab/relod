@@ -48,6 +48,7 @@ def main():
 
     episode, episode_reward, episode_step, n_reset = 0, 0, 0, 0
     (image, prop) = agent.receive_init_ob()
+    
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
         action = agent.sample_action((image, prop), step)
@@ -55,6 +56,7 @@ def main():
 
         if reset_action > args.reset_thresh:
             n_reset += 1
+            print('n_reset:', n_reset)
             agent.send_cmd('received') # sync here to avoid full queue
         
         (reward, (next_image, next_prop), done, kwargs) = agent.receive_sample_from_onboard()
