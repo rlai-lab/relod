@@ -166,10 +166,7 @@ def main():
 
     if args.load_model > -1:
         agent.load_policy_from_file(args.model_dir, args.load_model)
-            
-    if mode == MODE.EVALUATION:
-        episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
-
+    
     # First inference took a while (~1 min), do it before the agent-env interaction loop
     if mode != MODE.REMOTE_ONLY:
         agent.performer.sample_action((image, prop), args.init_steps+1)
@@ -179,6 +176,9 @@ def main():
     
     episodes = 0
     step = 0
+    if mode == MODE.EVALUATION:
+        episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episodes)))
+
     while step < args.env_steps: 
         # start a new episode
         ret, episode_step, n_reset, done = 0, 0, 0, 0
