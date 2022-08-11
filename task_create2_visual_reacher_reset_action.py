@@ -150,7 +150,6 @@ def main():
 
     args.image_shape = env.image_space.shape
     args.proprioception_shape = (env.proprioception_space.shape[0]+1,)
-    print(args.proprioception_shape)
     args.x_action_dim = env.action_space.shape[0]
     args.action_shape = (env.action_space.shape[0]+1,)    
     args.net_params = config
@@ -184,7 +183,6 @@ def main():
 
         # First inference took a while (~1 min), do it before the agent-env interaction loop
         if mode != MODE.REMOTE_ONLY and step == 0:
-            print('first inference.')
             agent.performer.sample_action((image, prop), args.init_steps+1)
         
         agent.send_init_ob((image, prop))
