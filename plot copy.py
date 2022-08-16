@@ -8,7 +8,7 @@ df = pandas.DataFrame(columns=["step", "avg_ret"])
 
 int = 2000
 for seed in range(0, 1):
-    exp = "SAC_async_create2_visual_reacher_dt=0.045_seed=3_target_size=0.2"
+    exp = "SAC_async_create2_visual_reacher_dt=0.045_seed=0_target_size=0.2"
 
     with open("results/"+exp+"/train.log") as f:
         episodes = f.readlines()
