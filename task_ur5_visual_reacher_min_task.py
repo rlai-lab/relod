@@ -38,12 +38,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Local remote visual UR5 Reacher')
     # environment
     parser.add_argument('--setup', default='Visual-UR5-min-time')
-    parser.add_argument('--env_name', default='Visual-UR5-min-time', type=str)
+    parser.add_argument('--env', default='Visual-UR5-min-time', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
     parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
-    parser.add_argument('--target_type', default='center', type=str)
+    parser.add_argument('--target_type', default='reward', type=str)
     parser.add_argument('--random_action_repeat', default=1, type=int)
     parser.add_argument('--agent_action_repeat', default=1, type=int)
     parser.add_argument('--image_history', default=3, type=int)
@@ -51,7 +51,9 @@ def parse_args():
     parser.add_argument('--ignore_joint', default=False, action='store_true')
     parser.add_argument('--episode_length_time', default=30.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
-    parser.add_argument('--tol', default=0.1, type=float)
+    parser.add_argument('--size_tol', default=0.015, type=float)
+    parser.add_argument('--center_tol', default=0.1, type=float)
+    parser.add_argument('--reward_tol', default=2.0, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -82,7 +84,7 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--appendix', default='center', type=str)
+    parser.add_argument('--description', default='size_margin=20', type=str)
     parser.add_argument('--seed', default=8, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
@@ -119,7 +121,7 @@ def main():
 
     args.work_dir += f'/results/{args.env_name}_' \
                      f'dt={args.dt}_bs={args.batch_size}_' \
-                     f'tol={args.tol}_'\
+                     f'target_type={args.target_type}_'\
                      f'dim={args.image_width}*{args.image_height}_{args.seed}_'+args.appendix
 
     args.model_dir = args.work_dir+'/model'
@@ -145,7 +147,9 @@ def main():
         joint_history = args.joint_history,
         episode_length = args.episode_length_time,
         dt = args.dt,
-        tol = args.tol
+        size_tol = args.size_tol,
+        center_tol = args.center_tol,
+        reward_tol = args.reward_tol,
     )
 
     utils.set_seed_everywhere(args.seed, None)
@@ -198,14 +202,14 @@ def main():
 
         action = agent.sample_action((image, prop), step)
         # step in the environment
-        next_image, next_prop, reward, done, terminated, _ = env.step(action)
+        next_image, next_prop, reward, done, _ = env.step(action)
 
         episode_reward += reward
         episode_step += 1
         
         agent.push_sample((image, prop), action, reward, (next_image, next_prop), done)
 
-        if done or terminated:
+        if done or (episode_step == episode_length_step): # set time out here
             if done:
                 success += 1
 

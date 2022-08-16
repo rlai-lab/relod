@@ -7,7 +7,7 @@ import time
 import gym
 import logging
 import numpy as np
-import senseact.devices.create2.create2_config as create2_config
+import senseact.devices.create2.create2_config_aligner as create2_config
 from senseact import utils
 
 from multiprocessing import Array, Value
@@ -356,8 +356,10 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
             A boolean flag for done
         """
         self._episode_step_.value += 1
-        return self._episode_step_.value >= self._episode_length_step or env_done
-
+        # change
+        # return self._episode_step_.value >= self._episode_length_step or env_done
+        return env_done
+        
     def _calc_roomba_obs_reward(self, sensor_window):
         """Helper to calculate reward.
         Args:

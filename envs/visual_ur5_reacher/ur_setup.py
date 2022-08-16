@@ -158,15 +158,15 @@ setups = {
                   #'end_effector_high': np.array([0.2, 0.4, 1.0]),
                   #'end_effector_low': np.array([-0.4, 0.1, 0.1]),
                   #'end_effector_high': np.array([0.4, 0.8, 0.8]),
-                  'end_effector_low': np.array([-0.5, 0.2, 0.3]),
+                  'end_effector_low': np.array([-0.25, 0.17, 0.37]),
                   # for origin: -0.1, 0.3, 0.6
-                  'end_effector_high': np.array([0.5, 0.5, 0.8]),
+                  'end_effector_high': np.array([0.15, 0.5, 0.63]),
                   'angles_low':np.pi/180 * np.array(
                       [ 50, # base
                        -120, # shoulder
                        -0, # elbow
                        -220, # wrist 1
-                        -135, # wrist 2
+                        -120, # wrist 2
                         50 # wrist 3, fixed
                        ]
                   ),
@@ -174,7 +174,7 @@ setups = {
                       [ 140, # base
                        -20, # shoulder
                         135, # elbow
-                        -120, # wrist 1
+                        -150, # wrist 1
                         -70, # wrist 2
                         190 # wrist 3, fixed
                        ]
