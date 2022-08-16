@@ -504,13 +504,13 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
                 self._pstop_time_ = time.time()
                 self._pstop_times_.append(self._pstop_time_)
                 # Check to see if too many p-stops occurred within a short time window
-                if len(self._pstop_times_) > self._max_pstop:
-                    if self._pstop_time_ - self._pstop_times_[-self._max_pstop] < self._max_pstop_window:
-                        print("Too many p-stops encountered, closing environment")
-                        print('Greater than {0} p-stops encountered within {1} seconds'.format(
-                                    self._max_pstop, self._max_pstop_window))
-                        self.close()
-                        sys.exit(1)
+                # if len(self._pstop_times_) > self._max_pstop:
+                #     if self._pstop_time_ - self._pstop_times_[-self._max_pstop] < self._max_pstop_window:
+                #         print("Too many p-stops encountered, closing environment")
+                #         print('Greater than {0} p-stops encountered within {1} seconds'.format(
+                #                     self._max_pstop, self._max_pstop_window))
+                #         self.close()
+                #         sys.exit(1)
             elif time.time() > self._pstop_time_ + self._clear_pstop_after:  # XXX
                 print("Unlocking p-stop")
                 self._actuation_packet_['UR5'] = self._pstop_unlock_packet
@@ -750,7 +750,7 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
                                np.all(xyz <= self._end_effector_high - self._box_bound_buffer))
 
         return inside_bound, inside_buffer_bound, mat, xyz
-    
+
     def _compute_reward_(self, image, joint):
         return -1
 

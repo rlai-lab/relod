@@ -16,6 +16,7 @@ class MonitorTarget:
         self.radius=7
         self.width=160
         self.height=90
+        self.margin = 20
         mpl.rcParams['toolbar'] = 'None'
         plt.ion()
         self.fig = plt.figure()
@@ -32,8 +33,8 @@ class MonitorTarget:
     def reset_plot(self):
         x, y = np.random.random(2)
         self.target.set_center(
-            (self.radius + x * (self.width - 2 * self.radius),
-             self.radius + y * (self.height - 2 * self.radius))
+            (self.radius + self.margin + x * (self.width - 2*self.radius - 2*self.margin),
+             self.radius + self.margin + y * (self.height - 2*self.radius - 2*self.margin))
         )
 
         self.fig.canvas.draw()

@@ -643,7 +643,12 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
         inside_angle_bound = np.all(self._angles_low <= self._qt_[-1, self._joint_indices]) and \
                              np.all(self._qt_[-1, self._joint_indices] <= self._angles_high)
         if inside_bound:
-            self.return_point = None
+            # change
+            # self.return_point = None
+            self.return_point = self._qt_[-1][self._joint_indices]
+            self.init_boundary_speed = np.max(np.abs(self._qd_.copy()))
+            # end
+
             self.escaped_the_box = False
         if inside_angle_bound:
             self.angle_return_point = False
@@ -743,6 +748,7 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
         inside_bound = np.all(self._end_effector_low <= xyz) and np.all(xyz <= self._end_effector_high)
         inside_buffer_bound = (np.all(self._end_effector_low + self._box_bound_buffer <= xyz) and \
                                np.all(xyz <= self._end_effector_high - self._box_bound_buffer))
+
         return inside_bound, inside_buffer_bound, mat, xyz
 
     def _compute_reward_(self, image, joint):

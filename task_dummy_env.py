@@ -2,9 +2,9 @@ import torch
 import argparse
 import time
 from algo.onboard_wrapper import OnboardWrapper
-from algo.sac_rad_agent_roomba import SACRADPerformer, SACRADLearner
+from algo.sac_rad_agent import SACRADPerformer, SACRADLearner
 import utils
-from envs.mujoco_visual_reacher.env import ReacherWrapper
+from envs.dummy_env import DummyEnv
 from algo.comm import MODE
 from logger import Logger
 import os
@@ -31,25 +31,23 @@ config = {
 def parse_args():
     parser = argparse.ArgumentParser()
     # environment
-    parser.add_argument('--target_type', default='visual_reacher', type=str)
-    parser.add_argument('--image_height', default=125, type=int)
-    parser.add_argument('--image_width', default=200, type=int)
+    parser.add_argument('--target_type', default='dummy_env', type=str)
+    parser.add_argument('--image_height', default=90, type=int)
+    parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--stack_frames', default=3, type=int)
-    parser.add_argument('--tol', default=0.036, type=float)
-    parser.add_argument('--image_period', default=1, type=int)
     parser.add_argument('--episode_length_time', default=50, type=int)
     parser.add_argument('--dt', default=1, type=int)
     # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
+    parser.add_argument('--replay_buffer_capacity', default=1000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
-    parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--env_steps', default=50000, type=int)
-    parser.add_argument('--batch_size', default=256, type=int)
-    parser.add_argument('--async_mode', default=True, action='store_true')
+    parser.add_argument('--init_steps', default=100, type=int)
+    parser.add_argument('--env_steps', default=100000, type=int)
+    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--async_mode', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1, type=float)
-    parser.add_argument('--update_every', default=50, type=int)
-    parser.add_argument('--update_epochs', default=50, type=int)
+    parser.add_argument('--update_every', default=1, type=int)
+    parser.add_argument('--update_epochs', default=1, type=int)
     # critic
     parser.add_argument('--critic_lr', default=1e-3, type=float)
     parser.add_argument('--critic_tau', default=0.01, type=float)
@@ -82,6 +80,13 @@ def parse_args():
     return args
 
 def main():
+    pid = 0
+    affinity_mask = {0}
+    #os.sched_setaffinity(pid, affinity_mask)
+    #affinity = os.sched_getaffinity(pid)
+  
+    # Print the result
+    #print("Train process is eligible to run on:", affinity)
     args = parse_args()
 
     if args.mode == 'r':
@@ -98,14 +103,11 @@ def main():
 
     if not 'conv' in config:
         image_shape = (0, 0, 0)
-        use_ground_truth = True
     else: 
         image_shape = (3*args.stack_frames, args.image_height, args.image_width)
-        use_ground_truth = False
 
     args.work_dir += f'/results/{args.target_type}_' \
-                     f'seed={args.seed}_' \
-                     f'tol={args.tol}/'
+                     f'seed={args.seed}'
 
     utils.make_dir(args.work_dir)
 
@@ -113,7 +115,7 @@ def main():
     args.model_dir = model_dir
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
-    env = ReacherWrapper(args.tol, image_shape, args.image_period, use_ground_truth=use_ground_truth)
+    env = DummyEnv(image_shape)
     utils.set_seed_everywhere(args.seed, env)
 
     args.image_shape = env.image_space.shape
@@ -125,10 +127,15 @@ def main():
     episode_length_step = int(args.episode_length_time / args.dt)
     agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
     agent.send_data(args)
+    '''
     agent.init_learner(SACRADLearner, args)
     agent.init_performer(SACRADPerformer, args)
     agent.learner.set_performer(agent.performer)
-
+    '''
+    agent.init_performer(SACRADPerformer, args)
+    agent.init_learner(SACRADLearner, args, agent.performer)
+    
+    print('agent is initialized.')
     # sync initial weights with remote
     agent.apply_remote_policy(block=True)
     
@@ -137,8 +144,9 @@ def main():
     agent.send_init_ob((image, propri))
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
+        action_t1 = time.time()
         action = agent.sample_action((image, propri), step)
-
+        print('inferrence time:', time.time()-action_t1)
         next_image, next_propri, reward, done, _ = env.step(action)
 
         episode_reward += reward

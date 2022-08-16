@@ -53,10 +53,18 @@ class VisualReacherMinTimeEnv:
                  joint_history=1,
                  episode_length=30,
                  dt=0.04,
-                 tol=0.02
+                 size_tol=0.015,
+                 center_tol=0.1,
+                 reward_tol=1.0,
                 ):
-        self._tol = tol
+        self._image_width = image_width
+        self._image_height = image_height
+        self._dt = dt
         self._target_type = target_type
+        self._size_tol = size_tol
+        self._center_tol = center_tol
+        self._reward_tol = reward_tol
+        
         # state
         np.random.seed(seed)
         rand_state = np.random.get_state()
@@ -108,23 +116,57 @@ class VisualReacherMinTimeEnv:
 
         return abs(x-target_location[0]), abs(y-target_location[1])
 
-    def _compute_reward(self, image):
-        pass
+    def _compute_reward(self, image, joint):
+        """Computes reward at a given time step.
+        Returns:
+            A float reward.
+        """
+        image = np.transpose(image, [1,2,0])
+        image = image[:, :, -3:]
+        lower = [0, 0, 120]
+        upper = [50, 50, 255]
+        lower = np.array(lower, dtype="uint8")
+        upper = np.array(upper, dtype="uint8")
+
+        mask = cv2.inRange(image, lower, upper)
+        cv2.imshow('', mask)
+        cv2.waitKey(1)
+        
+        size_x, size_y = mask.shape
+        # reward for reaching task, may not be suitable for tracking
+        if 255 in mask:
+            xs, ys = np.where(mask == 255.)
+            reward_x = 1 / 2  - np.abs(xs - int(size_x / 2)) / size_x
+            reward_y = 1 / 2 - np.abs(ys - int(size_y / 2)) / size_y
+            reward = np.sum(reward_x * reward_y) / self._image_width / self._image_height
+        else:
+            reward = 0
+        reward *= 800
+        reward = np.clip(reward, 0, 4)
+
+        '''
+        When the joint 4 is perpendicular to the mounting ground:
+            joint 0 + joint 4 == 0
+            joint 1 + joint 2 + joint 3 == -pi
+        '''
+        # chagne
+        # scale = (np.abs(joint[0] + joint[4]) + np.abs(np.pi + np.sum(joint[1:4])))
+        # return reward - scale
+        return reward 
 
     @property
     def image_space(self):
-        return self._env._observation_space['image']
+        return self._env.observation_space['image']
 
     @property
     def proprioception_space(self):
-        return self._env._observation_space['joint']
+        return self._env.observation_space['joint']
 
     @property
     def action_space(self):
         return self._env.action_space
 
     def reset(self):
-        assert not self._reset
 
         obs_dict = self._env.reset()
         image = obs_dict['image']
@@ -139,38 +181,44 @@ class VisualReacherMinTimeEnv:
         obs_dict, reward, done, _ = self._env.step(action)
         image = obs_dict['image']
         prop = obs_dict['joint']
-        terminated = done
         done = 0
         info = {}
 
         if self._target_type == 'size':
-            done = self._compute_target_size(image) >= self._tol
+            done = self._compute_target_size(image) >= self._size_tol
         elif self._target_type == 'center':
             offset = self._compute_target_offset(image, (0, 0))
-            done = offset[0] <= self._tol*2 and offset[1] <= self._tol*2
+            done = offset[0] <= self._center_tol*2 and offset[1] <= self._center_tol*2
         elif self._target_type == 'reward':
-            done = self._compute_reward(image) >= self._tol
+            r = self._compute_reward(image, prop)
+            # print('r:',r)
+            done = r >= self._reward_tol
+        elif self._target_type == 'size_center':
+            offset = self._compute_target_offset(image, (0, 0))
+            done = (self._compute_target_size(image) >= self._size_tol) and \
+                    (offset[0] <= self._center_tol*2 and offset[1] <= self._center_tol*2)
         else:
             raise NotImplementedError()
 
-        if done or terminated:
+        if done:
             self._reset = False
 
         reward = -1
 
-        return image, prop, reward, done, terminated, info
+        return image, prop, reward, done, info
 
 if __name__ == '__main__':
     np.random.seed(0)
-    env = VisualReacherMinTimeEnv(camera_id=2)
+    env = VisualReacherMinTimeEnv(camera_id=0)
     mt = MonitorTarget()
-    mt.reset_plot()
+            
     mt.reset_plot()
     input('go?')
     env.reset()
     success, episodes = 0, 0
     while episodes <= 20:
         action = env.action_space.sample()
+        
         image, prop, reward, done, terminated, info = env.step(action)
         
         if done or terminated:
