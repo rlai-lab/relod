@@ -158,17 +158,7 @@ class OnboardWrapper(BaseWrapper):
             return self._learner.update_policy(*args, **kwargs)
         else:
             raise NotImplementedError('update_policy: {} mode is not supported'.format(self._mode))
-
-    def flush_sample_queue(self):
-        if self._mode in [MODE.REMOTE_ONLY, MODE.LOCAL_ONLY, MODE.EVALUATION]:
-            return
-        elif self._mode == MODE.ONBOARD_REMOTE:
-            while self._sample_queue.qsize() > 0: # not reliable, but ok
-                time.sleep(1) # wait to empty the queue
-            return
-        else:
-            raise NotImplementedError('flush_sample_queue: {} mode is not supported'.format(self._mode))
-            
+        
     def save_policy_to_file(self, *args, **kwargs):
         if self._mode == MODE.LOCAL_ONLY:
             self._learner.save_policy_to_file(*args, **kwargs)

@@ -48,6 +48,8 @@ def parse_args():
     parser.add_argument('--min_target_size', default=0.2, type=float)
     # Reset threshold
     parser.add_argument('--reset_thresh', default=0.9, type=float, help="Action threshold between [-1, 1]")
+    parser.add_argument('--reset_steps', default=80, type=int)
+    parser.add_argument('--reset_penalty', default=-60, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -200,7 +202,7 @@ def main():
 
             if episode_step >= flush_step:
                 env.stop_roomba()
-                agent.flush_sample_queue()
+                assert agent.recv_cmd() == 'received' # sync here to avoid full queue
                 flush_step += episode_length_step
                 
             action = agent.sample_action((image, prop), step)
@@ -210,13 +212,12 @@ def main():
             # Reset action
             if reset_action > args.reset_thresh:
                 n_reset += 1
-                episode_step += 80-1
-                step += 80-1
+                episode_step += args.reset_steps-1
+                step += args.reset_steps-1
                 done = 0
-                reward = -80
+                reward = args.reset_penalty
 
                 next_image, next_prop = env.reset()
-                assert agent.recv_cmd() == 'received' # sync here to avoid full queue
             
                 if mode == MODE.EVALUATION:
                     episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episodes)))

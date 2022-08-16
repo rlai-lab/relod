@@ -46,11 +46,12 @@ def main():
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
+    episode_length_step = int(args.episode_length_time / args.dt)
     episodes = 0
     step = 0    
     while step < args.env_steps: 
         # start a new episode
-        ret, episode_step, n_reset, done = 0, 0, 0, 0
+        ret, episode_step, n_reset, done, flush_step = 0, 0, 0, 0, episode_length_step
         agent.learner.pause_update()
         (image, prop) = agent.receive_init_ob()
         agent.learner.resume_update()
@@ -58,6 +59,10 @@ def main():
         # start the interaction loop
         start_time = time.time()
         while not done:
+            if episode_step >= flush_step:
+                agent.send_cmd('received') # sync here to avoid full queue
+                flush_step += episode_length_step
+
             action = agent.sample_action((image, prop), step)
             reset_action = action[-1]
 
@@ -65,9 +70,8 @@ def main():
             if reset_action > args.reset_thresh:
                 n_reset += 1
                 print('n_reset:', n_reset)
-                episode_step += 80-1
-                step += 80-1
-                agent.send_cmd('received') # sync here to avoid full queue
+                episode_step += args.reset_steps-1
+                step += args.reset_steps-1
 
             agent.learner.pause_update() # agent may reset and charge
             (reward, (next_image, next_prop), done, kwargs) = agent.receive_sample_from_onboard()
