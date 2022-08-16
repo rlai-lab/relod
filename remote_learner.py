@@ -6,8 +6,6 @@ from logger import Logger
 import time
 import utils
 import os
-import numpy as np
-import cv2
 
 def parse_args():
     parser = argparse.ArgumentParser()
