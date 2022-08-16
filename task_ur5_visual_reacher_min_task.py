@@ -40,7 +40,7 @@ def parse_args():
     parser.add_argument('--setup', default='Visual-UR5-min-time')
     parser.add_argument('--env_name', default='Visual-UR5-min-time', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=2, type=int)
+    parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='center', type=str)
