@@ -76,14 +76,15 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.104', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--seed', default=3, type=int)
+    parser.add_argument('--appendix', default='with_time', type=str)
+    parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=-1, type=int)
+    parser.add_argument('--load_model', default=99999, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     args = parser.parse_args()
@@ -118,9 +119,9 @@ def main():
     args.work_dir += f'/results/{version}_{args.target_type}_' \
                      f'dt={args.dt}_' \
                      f'seed={args.seed}_' \
-                     f'target_size={args.min_target_size}/'
+                     f'target_size={args.min_target_size}_'+args.appendix+'/'
     args.model_dir = args.work_dir+'model'
-
+    print(args.model_dir)
     if mode == MODE.LOCAL_ONLY:
         utils.make_dir(args.work_dir)
         utils.make_dir(args.model_dir)
@@ -166,7 +167,8 @@ def main():
 
     if args.load_model > -1:
         agent.load_policy_from_file(args.model_dir, args.load_model)
-
+        print('loaded model:', args.load_model)
+        
     if mode == MODE.EVALUATION and args.load_model > -1:
         args.init_steps = 0
     
@@ -177,12 +179,13 @@ def main():
 
     while step < args.env_steps: 
         # start a new episode
-        ret, episode_step, n_reset, done = 0, 0, 0, 0
+        ret, episode_step, n_reset, done, flush_step = 0, 0, 0, 0, episode_length_step
         (image, prop) = env.reset()
         prop = append_time(prop, episode_step)
 
         # First inference took a while (~1 min), do it before the agent-env interaction loop
         if mode != MODE.REMOTE_ONLY and step == 0:
+            print('first inference')
             agent.performer.sample_action((image, prop), args.init_steps+1)
         
         agent.send_init_ob((image, prop))
@@ -195,6 +198,11 @@ def main():
                 image_to_save = image_to_save[:,:,0:3]
                 cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
 
+            if episode_step >= flush_step:
+                env.stop_roomba()
+                agent.flush_sample_queue()
+                flush_step += episode_length_step
+                
             action = agent.sample_action((image, prop), step)
             x_action = action[:args.x_action_dim]
             reset_action = action[-1]

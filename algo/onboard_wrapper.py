@@ -3,6 +3,7 @@ import multiprocessing as mp
 import queue
 from algo.comm import MODE
 from algo.rl_agent import BasePerformer, BaseLearner, BaseWrapper
+import time
 
 class OnboardWrapper(BaseWrapper):
     def __init__(self, max_samples_per_episode,
@@ -126,7 +127,7 @@ class OnboardWrapper(BaseWrapper):
         elif self._mode in [MODE.ONBOARD_REMOTE, MODE.LOCAL_ONLY, MODE.EVALUATION]:
             action = self._performer.sample_action(ob, *args, **kwargs)
             if self._mode == MODE.ONBOARD_REMOTE:
-                self._sample_queue.put_nowait(action)
+                self._sample_queue.put_nowait(action) # fatal error if sample queue is full
         else:
             raise NotImplementedError('sample_action: {} mode is not supported'.format(self._mode))
         
@@ -158,6 +159,16 @@ class OnboardWrapper(BaseWrapper):
         else:
             raise NotImplementedError('update_policy: {} mode is not supported'.format(self._mode))
 
+    def flush_sample_queue(self):
+        if self._mode in [MODE.REMOTE_ONLY, MODE.LOCAL_ONLY, MODE.EVALUATION]:
+            return
+        elif self._mode == MODE.ONBOARD_REMOTE:
+            while self._sample_queue.qsize() > 0: # not reliable, but ok
+                time.sleep(1) # wait to empty the queue
+            return
+        else:
+            raise NotImplementedError('flush_sample_queue: {} mode is not supported'.format(self._mode))
+            
     def save_policy_to_file(self, *args, **kwargs):
         if self._mode == MODE.LOCAL_ONLY:
             self._learner.save_policy_to_file(*args, **kwargs)

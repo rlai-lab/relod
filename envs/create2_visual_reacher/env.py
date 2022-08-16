@@ -441,6 +441,10 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
             print('current charge:', sensor_window[-1][0]['battery charge'])
             sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
 
+    def stop_roomba(self):
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
+        
     # ======== rllab compatible gym codes =========
 
     @property
