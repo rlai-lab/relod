@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
-    parser.add_argument('--target_type', default='reward', type=str)
+    parser.add_argument('--target_type', default='size', type=str)
     parser.add_argument('--random_action_repeat', default=1, type=int)
     parser.add_argument('--agent_action_repeat', default=1, type=int)
     parser.add_argument('--image_history', default=3, type=int)
@@ -67,25 +67,25 @@ def parse_args():
     parser.add_argument('--update_epochs', default=50, type=int)
     # critic
     parser.add_argument('--critic_lr', default=3e-4, type=float)
-    parser.add_argument('--critic_tau', default=0.01, type=float)
+    parser.add_argument('--critic_tau', default=0.005, type=float)
     parser.add_argument('--critic_target_update_freq', default=1, type=int)
     parser.add_argument('--bootstrap_terminal', default=0, type=int)
     # actor
     parser.add_argument('--actor_lr', default=3e-4, type=float)
     parser.add_argument('--actor_update_freq', default=1, type=int)
     # encoder
-    parser.add_argument('--encoder_tau', default=0.05, type=float)
+    parser.add_argument('--encoder_tau', default=0.005, type=float)
     # sac
-    parser.add_argument('--discount', default=1.0, type=float)
+    parser.add_argument('--discount', default=0.99, type=float)
     parser.add_argument('--init_temperature', default=0.1, type=float)
-    parser.add_argument('--alpha_lr', default=1e-4, type=float)
+    parser.add_argument('--alpha_lr', default=3e-4, type=float)
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
     parser.add_argument('--description', default='size_margin=20', type=str)
-    parser.add_argument('--seed', default=8, type=int)
+    parser.add_argument('--seed', default=4, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
@@ -119,10 +119,10 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/results/{args.env_name}_' \
+    args.work_dir += f'/results/{args.env}_' \
                      f'dt={args.dt}_bs={args.batch_size}_' \
                      f'target_type={args.target_type}_'\
-                     f'dim={args.image_width}*{args.image_height}_{args.seed}_'+args.appendix
+                     f'dim={args.image_width}*{args.image_height}_{args.seed}_'+args.description
 
     args.model_dir = args.work_dir+'/model'
 
@@ -248,7 +248,7 @@ def main():
         
     # Clean up
     agent.close()
-    env.terminate()
+    env.close()
     print('Train finished')
 
 if __name__ == '__main__':

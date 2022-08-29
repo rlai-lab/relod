@@ -754,6 +754,10 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
     def _compute_reward_(self, image, joint):
         return -1
 
+    def imm_stop_arm(self):
+
+        self._actuator_comms['UR5'].actuator_buffer.write(self._stopj_packet)
+
     def _check_done(self):
         """Checks whether the episode is over.
 
@@ -766,10 +770,13 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
         """
         self._episode_steps += 1
         if (self._episode_steps >= self._episode_length_step): # or env_done:
-            self._actuator_comms['UR5'].actuator_buffer.write(self._stopj_packet)
+            self.stop_arm()
             return True
         else:
             return False
+
+    def stop_arm(self):
+        self._actuator_comms['UR5'].actuator_buffer.write(self._stopj_packet)
 
     def reset(self, blocking=True):
         """Resets the arm, optionally blocks the environment until done."""

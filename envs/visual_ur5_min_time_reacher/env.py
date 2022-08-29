@@ -202,11 +202,15 @@ class VisualReacherMinTimeEnv:
 
         if done:
             self._reset = False
+            self._env.stop_arm()
 
         reward = -1
 
         return image, prop, reward, done, info
 
+    def close(self):
+        self._env.close()
+        
 if __name__ == '__main__':
     np.random.seed(0)
     env = VisualReacherMinTimeEnv(camera_id=0)
