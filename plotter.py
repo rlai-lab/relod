@@ -172,8 +172,6 @@ def plot_ur5_reacher(basepaths, fname_parts, colors, labels, save_path=''):
     for i, (bp, fnp) in enumerate(zip(basepaths, fname_parts)):
         all_x, all_rets = get_all_plot_rets(basepath=bp, fname_part=fnp, seeds=seeds)
         for x, rets in zip(all_x, all_rets):
-            print(x)
-            print(rets)
             ax1.plot(x, rets, color=colors[i], linewidth=0.6, alpha=0.75)
         avg_rets = np.mean(np.array(all_rets), axis=0)
         ax1.plot(all_x[0], avg_rets, label=labels[i], color=colors[i])
