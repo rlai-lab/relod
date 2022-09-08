@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument('--setup', default='Visual-UR5-min-time')
     parser.add_argument('--env_name', default='Visual-UR5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=2, type=int)
+    parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='reaching', type=str)
@@ -55,7 +55,7 @@ def parse_args():
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int) 
-    parser.add_argument('--env_steps', default=100000, type=int)
+    parser.add_argument('--env_steps', default=150000, type=int)
     parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.08, type=float)
@@ -80,7 +80,7 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--seed', default=0, type=int)
+    parser.add_argument('--seed', default=3, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
