@@ -8,7 +8,6 @@ from logger import Logger
 from algo.comm import MODE
 from algo.onboard_wrapper import OnboardWrapper
 from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
-from envs.visual_ur5_reacher.configs.ur5_config import config
 from envs.visual_ur5_reacher.ur5_wrapper import UR5Wrapper
 from remote_learner_ur5 import MonitorTarget
 import numpy as np
@@ -36,10 +35,10 @@ config = {
 def parse_args():
     parser = argparse.ArgumentParser(description='Local remote visual UR5 Reacher')
     # environment
-    parser.add_argument('--setup', default='Visual-UR5-min-time')
+    parser.add_argument('--setup', default='Visual-UR5-min-time') # use the min time setup for the new monitor
     parser.add_argument('--env_name', default='Visual-UR5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
-    parser.add_argument('--camera_id', default=0, type=int)
+    parser.add_argument('--camera_id', default=2, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='reaching', type=str)
@@ -51,14 +50,14 @@ def parse_args():
     parser.add_argument('--episode_length_time', default=4.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
     # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=16000, type=int)
+    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int) 
-    parser.add_argument('--env_steps', default=150000, type=int)
-    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--env_steps', default=100000, type=int)
+    parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
-    parser.add_argument('--max_updates_per_step', default=0.08, type=float)
+    parser.add_argument('--max_updates_per_step', default=2, type=float)
     parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
     # critic
@@ -76,11 +75,11 @@ def parse_args():
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     # agent
-    parser.add_argument('--remote_ip', default='localhost', type=str)
+    parser.add_argument('--remote_ip', default='129.128.159.211', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='ro', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
     # misc
-    parser.add_argument('--seed', default=4, type=int)
+    parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
@@ -101,6 +100,11 @@ def main():
     elif args.mode == 'o':
         mode = MODE.LOCAL_ONLY
         mt = MonitorTarget()
+        mt.reset_plot()
+        mt.reset_plot()
+        mt.reset_plot()
+        mt.reset_plot()
+        input('go?')
         
     elif args.mode == 'ro':
         mode = MODE.ONBOARD_REMOTE
@@ -145,11 +149,7 @@ def main():
     )
 
     utils.set_seed_everywhere(args.seed, None)
-    mt.reset_plot()
-    mt.reset_plot()
-    mt.reset_plot()
-    mt.reset_plot()
-    input('go?')
+    
     obs, state = env.reset()
     image_to_show = np.transpose(obs, [1, 2, 0])
     image_to_show = image_to_show[:,:,-3:]
