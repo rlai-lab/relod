@@ -33,7 +33,7 @@ class BaseWrapper:
         raise NotImplementedError()
 
     def send_cmd(self, cmd):
-        if self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
+        if self._mode in [MODE.REMOTE_LOCAL, MODE.REMOTE_ONLY]:
             send_message(cmd, self._cmd_sock)
         elif self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             pass
@@ -41,7 +41,7 @@ class BaseWrapper:
             raise NotImplementedError('send_cmd: {} mode is not supported'.format(self._mode))
 
     def recv_cmd(self):
-        if self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
+        if self._mode in [MODE.REMOTE_LOCAL, MODE.REMOTE_ONLY]:
             return recv_message(self._cmd_sock)
         elif self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             pass
@@ -49,7 +49,7 @@ class BaseWrapper:
             raise NotImplementedError('recv_cmd: {} mode is not supported'.format(self._mode))
 
     def send_data(self, msg):
-        if self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
+        if self._mode in [MODE.REMOTE_LOCAL, MODE.REMOTE_ONLY]:
             send_message(msg, self._data_sock)
         elif self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             pass
@@ -57,7 +57,7 @@ class BaseWrapper:
             raise NotImplementedError('send_data: {} mode is not supported'.format(self._mode))
 
     def recv_data(self):
-        if self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
+        if self._mode in [MODE.REMOTE_LOCAL, MODE.REMOTE_ONLY]:
             return recv_message(self._data_sock)
         elif self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             pass

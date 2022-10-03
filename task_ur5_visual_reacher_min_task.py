@@ -6,7 +6,7 @@ import os
 
 from logger import Logger
 from algo.comm import MODE
-from algo.onboard_wrapper import OnboardWrapper
+from algo.local_wrapper import LocalWrapper
 from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from envs.visual_ur5_reacher.configs.ur5_config import config
 from envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv
@@ -108,7 +108,7 @@ def main():
         mt = MonitorTarget()
         
     elif args.mode == 'ro':
-        mode = MODE.ONBOARD_REMOTE
+        mode = MODE.REMOTE_LOCAL
     elif args.mode == 'e':
         mt = MonitorTarget()
         mt.reset_plot()
@@ -170,7 +170,7 @@ def main():
     args.net_params = config
 
     episode_length_step = int(args.episode_length_time / args.dt)
-    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
+    agent = LocalWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
     agent.send_data(args)
     agent.init_performer(SACRADPerformer, args)
     agent.init_learner(SACRADLearner, args, agent.performer)
