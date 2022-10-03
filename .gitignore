@@ -129,6 +129,7 @@ dmypy.json
 .pyre/
 
 results/
+backups/
 *err
 *out
 
