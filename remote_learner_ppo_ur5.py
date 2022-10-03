@@ -70,7 +70,7 @@ def main():
         if done or (episode_step == episode_length_step): # set time out here
             stat = agent.update_policy(done, next_image, next_propri)
             mt.reset_plot() # Monitor handling
-            if agent.mode == MODE.ONBOARD_REMOTE:
+            if agent.mode == MODE.REMOTE_LOCAL:
                 if stat != None:
                     agent.send_cmd('new policy')
                     agent.send_policy()
