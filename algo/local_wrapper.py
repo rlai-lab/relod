@@ -28,31 +28,31 @@ class LocalWrapper(BaseWrapper):
             self.send_data(self._mode)
             print('done.')
 
-        if self._mode == MODE.REMOTE_LOCAL:
-            self._sample_queue = mp.Queue(3*max_samples_per_episode+100)
-            self._policy_queue = mp.Queue(2)
+            if self._mode == MODE.REMOTE_LOCAL:
+                self._sample_queue = mp.Queue(3*max_samples_per_episode+100)
+                self._policy_queue = mp.Queue(2)
 
-            self._start_send_and_receive_event = mp.Event()
-            self._send_started_event = mp.Event()
-            self._receive_started_event = mp.Event()
-            self._send_started_event.clear()
-            self._receive_started_event.clear()
+                self._start_send_and_receive_event = mp.Event()
+                self._send_started_event = mp.Event()
+                self._receive_started_event = mp.Event()
+                self._send_started_event.clear()
+                self._receive_started_event.clear()
 
-            # statistics
-            self._sent_samples = mp.Value('L', 0, lock=False)
-            self._received_policies = mp.Value('L', 0, lock=False)
-            self._dropped_policies = mp.Value('L', 0, lock=False)
-            self._applied_policies = 0
+                # statistics
+                self._sent_samples = mp.Value('L', 0, lock=False)
+                self._received_policies = mp.Value('L', 0, lock=False)
+                self._dropped_policies = mp.Value('L', 0, lock=False)
+                self._applied_policies = 0
 
-            self._send_p = mp.Process(target=self._send_sample_p)
-            self._recv_p = mp.Process(target=self._receive_remote_policy_p)
+                self._send_p = mp.Process(target=self._send_sample_p)
+                self._recv_p = mp.Process(target=self._receive_remote_policy_p)
 
-            self._send_p.start()
-            self._recv_p.start()
+                self._send_p.start()
+                self._recv_p.start()
 
-            # wait for processes to start
-            self._send_started_event.wait()
-            self._receive_started_event.wait()
+                # wait for processes to start
+                self._send_started_event.wait()
+                self._receive_started_event.wait()
 
         elif self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             pass
