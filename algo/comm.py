@@ -3,7 +3,7 @@ import pickle
 class MODE:
     LOCAL_ONLY = 'local only'
     REMOTE_ONLY = 'remote only'
-    ONBOARD_REMOTE = 'onboard remote'
+    REMOTE_LOCAL = 'remote local'
     EVALUATION = 'evaluation'
 
 def recv_message(client_sock):

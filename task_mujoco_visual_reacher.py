@@ -1,7 +1,7 @@
 import torch
 import argparse
 import time
-from algo.onboard_wrapper import OnboardWrapper
+from algo.local_wrapper import LocalWrapper
 from algo.sac_rad_agent import SACRADPerformer, SACRADLearner
 import utils
 from envs.mujoco_visual_reacher.env import ReacherWrapper
@@ -89,7 +89,7 @@ def main():
     elif args.mode == 'o':
         mode = MODE.LOCAL_ONLY
     elif args.mode == 'ro':
-        mode = MODE.ONBOARD_REMOTE
+        mode = MODE.REMOTE_LOCAL
     else:
         raise  NotImplementedError()
 
@@ -121,7 +121,7 @@ def main():
     args.env_action_space = env.action_space
 
     episode_length_step = int(args.episode_length_time / args.dt)
-    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
+    agent = LocalWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
     agent.send_data(args)
     agent.init_performer(SACRADPerformer, args)
     agent.init_learner(SACRADLearner, args, agent.performer)

@@ -6,7 +6,7 @@ import os
 
 from logger import Logger
 from algo.comm import MODE
-from algo.onboard_wrapper import OnboardWrapper
+from algo.local_wrapper import LocalWrapper
 from algo.ppo_rad_agent import PPORADPerformer, PPORADLearner
 from envs.visual_ur5_reacher.configs.ur5_config import config
 from envs.visual_ur5_reacher.ur5_wrapper import UR5Wrapper
@@ -93,7 +93,7 @@ def main():
         mt = MonitorTarget()
         mt.reset_plot()
     elif args.mode == 'ro':
-        mode = MODE.ONBOARD_REMOTE
+        mode = MODE.REMOTE_LOCAL
     elif args.mode == 'e':
         mode = MODE.EVALUATION
         mt = MonitorTarget()
@@ -144,7 +144,7 @@ def main():
     args.env_action_space = env.action_space
 
     episode_length_step = int(args.episode_length_time / args.dt)
-    agent = OnboardWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
+    agent = LocalWrapper(episode_length_step, mode, remote_ip=args.remote_ip, port=args.port)
     agent.send_data(args)
     agent.init_performer(PPORADPerformer, args)
     agent.init_learner(PPORADLearner, args, agent.performer)
@@ -193,7 +193,7 @@ def main():
                 agent.update_policy(done, next_obs, next_state)
                 mt.reset_plot()
             
-            if mode == MODE.ONBOARD_REMOTE:
+            if mode == MODE.REMOTE_LOCAL:
                 if agent.recv_cmd() == 'new policy':
                     agent.apply_remote_policy(True)
 

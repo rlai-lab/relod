@@ -4,7 +4,7 @@ import queue
 from algo.comm import MODE
 from algo.rl_agent import BasePerformer, BaseLearner, BaseWrapper
 
-class OnboardWrapper(BaseWrapper):
+class LocalWrapper(BaseWrapper):
     def __init__(self, max_samples_per_episode,
                        mode,
                        remote_ip='localhost', 
@@ -13,7 +13,7 @@ class OnboardWrapper(BaseWrapper):
         super().__init__()
         self._mode = mode
         print("Mode:", mode)
-        if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
+        if self._mode in [MODE.REMOTE_ONLY, MODE.REMOTE_LOCAL]:
             self._cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._cmd_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self._cmd_sock.connect((remote_ip, port))
@@ -28,7 +28,7 @@ class OnboardWrapper(BaseWrapper):
             self.send_data(self._mode)
             print('done.')
 
-        if self._mode == MODE.ONBOARD_REMOTE:
+        if self._mode == MODE.REMOTE_LOCAL:
             self._sample_queue = mp.Queue(3*max_samples_per_episode+100)
             self._policy_queue = mp.Queue(2)
 
@@ -81,7 +81,7 @@ class OnboardWrapper(BaseWrapper):
                 self._dropped_policies.value += 1
 
     def init_performer(self, performer_class: BasePerformer, *args, **kwargs):
-        if self._mode in [MODE.LOCAL_ONLY, MODE.ONBOARD_REMOTE, MODE.EVALUATION]:
+        if self._mode in [MODE.LOCAL_ONLY, MODE.REMOTE_LOCAL, MODE.EVALUATION]:
             self._performer = performer_class(*args, **kwargs)
         elif self._mode == MODE.REMOTE_ONLY:
             pass
@@ -91,7 +91,7 @@ class OnboardWrapper(BaseWrapper):
     def init_learner(self, learner_class: BaseLearner, *args, **kwargs):
         if self._mode == MODE.LOCAL_ONLY:
             self._learner = learner_class(*args, **kwargs)
-        elif self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY, MODE.EVALUATION]:
+        elif self._mode in [MODE.REMOTE_LOCAL, MODE.REMOTE_ONLY, MODE.EVALUATION]:
             pass
         else:
             raise NotImplementedError('init_learner: {} mode is not supported'.format(self._mode))
@@ -100,7 +100,7 @@ class OnboardWrapper(BaseWrapper):
         if self._mode == MODE.REMOTE_ONLY:
             assert self.recv_cmd() == 'wait for new episode'
             self.send_data(ob)
-        elif self._mode == MODE.ONBOARD_REMOTE:
+        elif self._mode == MODE.REMOTE_LOCAL:
             assert self.recv_cmd() == 'wait for new episode'
             self._sample_queue.put_nowait(ob) # fatal error if sample queue is full
         elif self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
@@ -113,7 +113,7 @@ class OnboardWrapper(BaseWrapper):
             self._learner.push_sample(ob, action, reward, next_ob, done, *args, **kwargs)
         elif self._mode == MODE.REMOTE_ONLY:
             self.send_data((reward, next_ob, done, *args, kwargs))
-        elif self._mode == MODE.ONBOARD_REMOTE:
+        elif self._mode == MODE.REMOTE_LOCAL:
             self._sample_queue.put_nowait((reward, next_ob, done, *args, kwargs)) # fatal error if sample queue is full
         elif self._mode == MODE.EVALUATION:
             pass
@@ -123,9 +123,9 @@ class OnboardWrapper(BaseWrapper):
     def sample_action(self, ob, *args, **kwargs):
         if self._mode == MODE.REMOTE_ONLY:
             action = self.recv_data()
-        elif self._mode in [MODE.ONBOARD_REMOTE, MODE.LOCAL_ONLY, MODE.EVALUATION]:
+        elif self._mode in [MODE.REMOTE_LOCAL, MODE.LOCAL_ONLY, MODE.EVALUATION]:
             action = self._performer.sample_action(ob, *args, **kwargs)
-            if self._mode == MODE.ONBOARD_REMOTE:
+            if self._mode == MODE.REMOTE_LOCAL:
                 self._sample_queue.put_nowait(action)
         else:
             raise NotImplementedError('sample_action: {} mode is not supported'.format(self._mode))
@@ -133,7 +133,7 @@ class OnboardWrapper(BaseWrapper):
         return action
 
     def apply_remote_policy(self, block=False):
-        if self._mode == MODE.ONBOARD_REMOTE:
+        if self._mode == MODE.REMOTE_LOCAL:
             try:
                 policy = self._policy_queue.get(block=block)
                 self.performer.load_policy(policy)
@@ -148,8 +148,8 @@ class OnboardWrapper(BaseWrapper):
             raise NotImplementedError('recv_policy: {} mode is not supported'.format(self._mode))
 
     def update_policy(self, *args, **kwargs):
-        if self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY, MODE.EVALUATION]:
-            if self._mode == MODE.ONBOARD_REMOTE:
+        if self._mode in [MODE.REMOTE_LOCAL, MODE.REMOTE_ONLY, MODE.EVALUATION]:
+            if self._mode == MODE.REMOTE_LOCAL:
                 self.apply_remote_policy()
 
             return None
@@ -161,7 +161,7 @@ class OnboardWrapper(BaseWrapper):
     def save_policy_to_file(self, *args, **kwargs):
         if self._mode == MODE.LOCAL_ONLY:
             self._learner.save_policy_to_file(*args, **kwargs)
-        elif self._mode in [MODE.REMOTE_ONLY, MODE.EVALUATION, MODE.ONBOARD_REMOTE]:
+        elif self._mode in [MODE.REMOTE_ONLY, MODE.EVALUATION, MODE.REMOTE_LOCAL]:
             pass
         else:
             raise NotImplementedError('save_policy_to_file: {} mode is not supported'.format(self._mode))
@@ -169,16 +169,16 @@ class OnboardWrapper(BaseWrapper):
     def load_policy_from_file(self, *args, **kwargs):
         if self._mode in [MODE.LOCAL_ONLY, MODE.EVALUATION]:
             self._performer.load_policy_from_file(*args, **kwargs)
-        elif self._mode in [MODE.ONBOARD_REMOTE, MODE.REMOTE_ONLY]:
+        elif self._mode in [MODE.REMOTE_LOCAL, MODE.REMOTE_ONLY]:
             pass
         else:
             raise NotImplementedError('load_policy_to_file: {} mode is not supported'.format(self._mode))
     
     def close(self, *args, **kwargs):
-        if self._mode in [MODE.REMOTE_ONLY, MODE.ONBOARD_REMOTE]:
+        if self._mode in [MODE.REMOTE_ONLY, MODE.REMOTE_LOCAL]:
             assert self.recv_cmd() == 'close'
 
-            if self._mode == MODE.ONBOARD_REMOTE:
+            if self._mode == MODE.REMOTE_LOCAL:
                 self._performer.close(*args, **kwargs)
                 self._send_p.terminate()
                 self._send_p.join()
