@@ -67,7 +67,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro'] ")
+    parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl'] ")
     # misc
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -86,9 +86,9 @@ def main():
 
     if args.mode == 'r':
         mode = MODE.REMOTE_ONLY
-    elif args.mode == 'o':
+    elif args.mode == 'l':
         mode = MODE.LOCAL_ONLY
-    elif args.mode == 'ro':
+    elif args.mode == 'rl':
         mode = MODE.REMOTE_LOCAL
     else:
         raise  NotImplementedError()

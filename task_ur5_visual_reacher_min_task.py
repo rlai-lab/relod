@@ -82,7 +82,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='o', type=str, help="Modes in ['r', 'o', 'ro', 'e'] ")
+    parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
     parser.add_argument('--description', default='size_margin=20', type=str)
     parser.add_argument('--seed', default=4, type=int)
@@ -103,11 +103,11 @@ def main():
 
     if args.mode == 'r':
         mode = MODE.REMOTE_ONLY
-    elif args.mode == 'o':
+    elif args.mode == 'l':
         mode = MODE.LOCAL_ONLY
         mt = MonitorTarget()
         
-    elif args.mode == 'ro':
+    elif args.mode == 'rl':
         mode = MODE.REMOTE_LOCAL
     elif args.mode == 'e':
         mt = MonitorTarget()
