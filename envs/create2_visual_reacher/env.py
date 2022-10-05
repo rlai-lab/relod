@@ -18,6 +18,7 @@ from senseact.envs.create2.create2_observation import Create2ObservationFactory
 from senseact.sharedbuffer import SharedBuffer
 from envs.create2_visual_reacher.depstech_camera_communicator import CameraCommunicator
 import cv2
+from statistics import mean
 
 class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
     """Create2 environment for training it drive forward.
@@ -462,17 +463,65 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
     def terminate(self):
         super().close()
 
-if __name__ == '__main__':
-    env = Create2VisualReacherEnv(episode_length_time=60, dt=0.045, image_shape=(9, 120, 160), camera_id=0, min_target_size=0.1)
+def random_policy_done_2_done_length():
+    seed = 1
+    np.random.seed(seed)
+    total_dones = 50
+    task = "create2 visual reacher"
+    episode_length_time = 30.0
+    dt = 0.045
+    env = Create2VisualReacherEnv(episode_length_time=episode_length_time, dt=dt, image_shape=(9, 120, 160), camera_id=0, min_target_size=0.2)
     env.start()
 
-    env.reset()
-    for i in range(10000):
-        a = env.action_space.sample()
-        (image, _), _, done, _ = env.step([0,0])
-        
-        image = np.transpose(image, [1, 2, 0])
-        cv2.imshow('', image[:,:,0:3])
-        cv2.waitKey
-        print(i+1, done)
+    # Experiment
+    timeout = int(episode_length_time/dt)
+    done_2_done_lens = []
+    steps = 0
+    while len(done_2_done_lens) < total_dones:
+        env.reset()
+        epi_steps = 0
+        done = 0
+        done_2_done_steps = 0
+        resets = 0
+        while not done:
+            action = env.action_space.sample()
 
+            # step in the environment
+            _, _, done, _ = env.step(action)
+
+            # Log
+            steps += 1
+            epi_steps += 1
+            done_2_done_steps += 1
+
+            # Termination
+            if epi_steps == timeout:
+                resets += 1
+                env.reset()
+                epi_steps = 0
+
+        done_2_done_lens.append(done_2_done_steps)
+        print('-'*50)
+        print('Episode: {}, done_2_done steps: {},resets: {}, total steps: {}'.format(len(done_2_done_lens), done_2_done_steps, resets, steps))
+        print('-'*50)
+
+    with open(task + "_random_stat.txt") as out_file:
+        for length in done_2_done_lens:
+            out_file.write(str(length)+'\n')
+
+        out_file.write(f"\nMean: {mean(done_2_done_lens)}")
+        
+if __name__ == '__main__':
+    # env = Create2VisualReacherEnv(episode_length_time=60, dt=0.045, image_shape=(9, 120, 160), camera_id=0, min_target_size=0.1)
+    # env.start()
+
+    # env.reset()
+    # for i in range(10000):
+    #     a = env.action_space.sample()
+    #     (image, _), _, done, _ = env.step([0,0])
+        
+    #     image = np.transpose(image, [1, 2, 0])
+    #     cv2.imshow('', image[:,:,0:3])
+    #     cv2.waitKey
+    #     print(i+1, done)
+    random_policy_done_2_done_length()
