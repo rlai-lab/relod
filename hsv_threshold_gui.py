@@ -38,7 +38,7 @@ phMin = psMin = pvMin = phMax = psMax = pvMax = 0
 # Output Image to display
 if useCamera:
     # cap = cv2.VideoCapture(0)
-    from envs.create2_visual_reacher.depstech_camera_communicator import CameraCommunicator
+    from relod.envs.create2_visual_reacher.depstech_camera_communicator import CameraCommunicator
     comm = CameraCommunicator(res=(160, 120))
     comm.start()
     waitTime = 330

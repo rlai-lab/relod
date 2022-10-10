@@ -1,15 +1,15 @@
 import torch
 import argparse
-import utils
+import relod.utils as utils
 import time
 import os
 
-from logger import Logger
-from algo.comm import MODE
-from algo.local_wrapper import LocalWrapper
-from algo.ppo_rad_agent import PPORADPerformer, PPORADLearner
-from envs.visual_ur5_reacher.configs.ur5_config import config
-from envs.visual_ur5_reacher.ur5_wrapper import UR5Wrapper
+from relod.logger import Logger
+from relod.algo.comm import MODE
+from relod.algo.local_wrapper import LocalWrapper
+from relod.algo.ppo_rad_agent import PPORADPerformer, PPORADLearner
+from relod.envs.visual_ur5_reacher.configs.ur5_config import config
+from relod.envs.visual_ur5_reacher.ur5_wrapper import UR5Wrapper
 from remote_learner_ur5 import MonitorTarget
 import numpy as np
 import cv2

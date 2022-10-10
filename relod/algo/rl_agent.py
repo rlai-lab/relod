@@ -1,4 +1,4 @@
-from algo.comm import MODE, send_message, recv_message
+from relod.algo.comm import MODE, send_message, recv_message
 
 class BaseWrapper:
     def __init__(self) -> None:

@@ -1,11 +1,11 @@
 import torch
 import argparse
-from algo.remote_wrapper import RemoteWrapper
-from algo.ppo_rad_agent import PPORADLearner, PPORADPerformer
-from algo.comm import MODE
-from logger import Logger
+from relod.algo.remote_wrapper import RemoteWrapper
+from relod.algo.ppo_rad_agent import PPORADLearner, PPORADPerformer
+from relod.algo.comm import MODE
+from relod.logger import Logger
 import time
-import utils
+import relod.utils as utils
 import os
 
 def parse_args():

@@ -1,15 +1,15 @@
 import torch
 import argparse
-import utils
+import relod.utils as utils
 import time
 import os
 
-from logger import Logger
-from algo.comm import MODE
-from algo.local_wrapper import LocalWrapper
-from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
-from envs.visual_ur5_reacher.configs.ur5_config import config
-from envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv
+from relod.logger import Logger
+from relod.algo.comm import MODE
+from relod.algo.local_wrapper import LocalWrapper
+from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
+from relod.envs.visual_ur5_reacher.configs.ur5_config import config
+from relod.envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv
 from remote_learner_ur5 import MonitorTarget
 import numpy as np
 import cv2

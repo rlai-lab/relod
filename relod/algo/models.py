@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.nn import Parameter
-from utils import random_augment
+from relod.utils import random_augment
 
 def weight_init(m):
     """Custom weight init for Conv2D and Linear layers."""

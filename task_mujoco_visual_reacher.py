@@ -1,23 +1,22 @@
 import torch
 import argparse
 import time
-from algo.local_wrapper import LocalWrapper
-from algo.sac_rad_agent import SACRADPerformer, SACRADLearner
-import utils
-from envs.mujoco_visual_reacher.env import ReacherWrapper
-from algo.comm import MODE
-from logger import Logger
+from relod.algo.local_wrapper import LocalWrapper
+from relod.algo.sac_rad_agent import SACRADPerformer, SACRADLearner
+import relod.utils as utils
+from relod.envs.mujoco_visual_reacher.env import ReacherWrapper
+from relod.algo.comm import MODE
+from relod.logger import Logger
 import os
 
 config = {
-    
-    'conv': [
-        # in_channel, out_channel, kernel_size, stride
-        [-1, 32, 3, 2],
-        [32, 32, 3, 2],
-        [32, 32, 3, 2],
-        [32, 32, 3, 1],
-    ],
+    # 'conv': [
+    #     # in_channel, out_channel, kernel_size, stride
+    #     [-1, 32, 3, 2],
+    #     [32, 32, 3, 2],
+    #     [32, 32, 3, 2],
+    #     [32, 32, 3, 1],
+    # ],
     
     'latent': 50,
 
@@ -111,7 +110,7 @@ def main():
     args.model_dir = model_dir
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
-    env = ReacherWrapper(args.tol, image_shape, args.image_period, use_ground_truth=False)
+    env = ReacherWrapper(args.tol, image_shape, args.image_period, use_ground_truth=True)
     utils.set_seed_everywhere(args.seed, env)
 
     args.image_shape = env.image_space.shape

@@ -1,5 +1,5 @@
-from algo.comm import MODE
-from algo.rl_agent import BaseLearner, BasePerformer, BaseWrapper
+from relod.algo.comm import MODE
+from relod.algo.rl_agent import BaseLearner, BasePerformer, BaseWrapper
 import socket
 
 class RemoteWrapper(BaseWrapper):

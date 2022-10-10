@@ -1,10 +1,10 @@
 import torch
 import argparse
-from algo.remote_wrapper import RemoteWrapper
-from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
-from logger import Logger
+from relod.algo.remote_wrapper import RemoteWrapper
+from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
+from relod.logger import Logger
 import time
-import utils
+import relod.utils as utils
 import os
 
 import matplotlib.pyplot as plt

@@ -1,8 +1,8 @@
 import socket
 import multiprocessing as mp
 import queue
-from algo.comm import MODE
-from algo.rl_agent import BasePerformer, BaseLearner, BaseWrapper
+from relod.algo.comm import MODE
+from relod.algo.rl_agent import BasePerformer, BaseLearner, BaseWrapper
 
 class LocalWrapper(BaseWrapper):
     def __init__(self, max_samples_per_episode,

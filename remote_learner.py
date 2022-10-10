@@ -1,13 +1,12 @@
 import torch
 import argparse
-from algo.remote_wrapper import RemoteWrapper
-from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
-from logger import Logger
+from relod.algo.remote_wrapper import RemoteWrapper
+from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
+from relod.logger import Logger
 import time
-import utils
+import relod.utils as utils
 import os
-import numpy as np
-import cv2
+
 
 def parse_args():
     parser = argparse.ArgumentParser()

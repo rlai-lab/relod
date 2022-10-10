@@ -1,16 +1,16 @@
 import torch
 import argparse
-import utils
+import relod.utils as utils
 import time
 import os
 
-from logger import Logger
-from algo.comm import MODE
-from algo.local_wrapper import LocalWrapper
-from algo.sac_rad_agent import SACRADLearner, SACRADPerformer
+from relod.logger import Logger
+from relod.algo.comm import MODE
+from relod.algo.local_wrapper import LocalWrapper
+from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 
 from senseact.utils import NormalizedEnv
-from envs.create2_visual_reacher.env import Create2VisualReacherEnv
+from relod.envs.create2_visual_reacher.env import Create2VisualReacherEnv
 
 import numpy as np
 import cv2

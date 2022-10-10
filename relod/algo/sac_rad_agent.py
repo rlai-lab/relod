@@ -1,11 +1,11 @@
-from algo.rl_agent import BaseLearner, BasePerformer
-from algo.models import ActorModel, CriticModel
+from relod.algo.rl_agent import BaseLearner, BasePerformer
+from relod.algo.models import ActorModel, CriticModel
 import copy
 import torch
-import utils
+import relod.utils as utils
 import numpy as np
 import torch.multiprocessing as mp
-from algo.sac_rad_buffer import AsyncRadReplayBuffer, RadReplayBuffer
+from relod.algo.sac_rad_buffer import AsyncRadReplayBuffer, RadReplayBuffer
 import queue
 
 class SACRADPerformer(BasePerformer):
