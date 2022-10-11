@@ -41,6 +41,5 @@ pip install .
 ```
 
 ## Cite
-```bash
-Wang, Y., Vasan, G., & Mahmood, A. R. (2022). Real-Time Reinforcement Learning for Vision-Based Robotics Utilizing Local and Remote Computers. arXiv preprint arXiv:2210.02317.
-```
+* Wang, Y., Vasan, G., & Mahmood, A. R. (2022). Real-Time Reinforcement Learning for Vision-Based Robotics Utilizing Local and Remote Computers. arXiv preprint arXiv:2210.02317.
+
