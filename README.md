@@ -1,6 +1,9 @@
 # ReLoD: The Remote-Local Distributed System for Real-time Reinforcement Learning on Vision-Based Robotics Tasks
 
-ReLoD is a distributed learning system for real-time vision based tasks. 
+ReLoD uses a wired local and a wireless remote computer to perform real-time learning, an appealing setting for industrial learning systems. It is a generalist RL system for learning with real robots from scratch! 
+Check out how ReLoD learns to perform vision-based tasks on UR5 and Roomba (iRobot Create 2): 
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/7iZKryi1xSY/0.jpg)](https://www.youtube.com/watch?v=7iZKryi1xSY)
 
 ## Supported Algorithms
 - Soft Actor Critic (SAC)
