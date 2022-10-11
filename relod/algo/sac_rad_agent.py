@@ -1,12 +1,16 @@
-from relod.algo.rl_agent import BaseLearner, BasePerformer
-from relod.algo.models import ActorModel, CriticModel
 import copy
 import torch
+import time
+import queue
+
 import relod.utils as utils
 import numpy as np
 import torch.multiprocessing as mp
+
 from relod.algo.sac_rad_buffer import AsyncRadReplayBuffer, RadReplayBuffer
-import queue
+from relod.algo.rl_agent import BaseLearner, BasePerformer
+from relod.algo.models import ActorModel, CriticModel
+
 
 class SACRADPerformer(BasePerformer):
     def __init__(self, args) -> None:
@@ -200,7 +204,6 @@ class SACRADLearner(BaseLearner):
         if step > self._args.init_steps and (step % self._args.update_every == 0):
             for _ in range(self._args.update_epochs):
                 stat = self._update(*self._replay_buffer.sample())
-            
             return stat
         
         return None
@@ -278,6 +281,7 @@ class SACRADLearner(BaseLearner):
         )
 
     def _update(self, images, propris, actions, rewards, next_images, next_propris, dones):
+        # tic = time.time()
         # regular update of SAC_RAD, sequentially augment data and train
         if images is not None:
             images = torch.as_tensor(images, device=self._args.device).float()
@@ -298,6 +302,7 @@ class SACRADLearner(BaseLearner):
         stats['train/batch_reward'] = rewards.mean().item()
         stats['train/num_updates'] = self._num_updates
         self._num_updates += 1
+        # print("Took {}s to update the model".format(time.time()-tic))
         
         return stats
         
