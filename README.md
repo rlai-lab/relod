@@ -1,20 +1,31 @@
 # ReLoD: The Remote-Local Distributed System for Real-time Reinforcement Learning on Vision-Based Robotics Tasks
 
-Real-time Reinforcement Learning for Vision-Based Robotics Utilizing Local and Remote Computers
+ReLoD is a distributed learning system for real-time vision based tasks. 
+
+## Supported Algorithms
+- Soft Actor Critic (SAC)
+- Proximal Policy Optimization (PPO)
+
+N.B: All vision-based experiments use Random Augmented Data (RAD) to improve sample efficiency
+
+## Supported Tasks
+- UR5-VisualReacher
+- Create-Reacher
+- Vector-ChargerDetector
 
 ## Installation instructions
-1. Download Mujoco150, Mujoco200 and license files to ~/.mujoco
+1. Download Mujoco and license files to ~/.mujoco
 2. Install miniconda or anaconda
 3. Create a virtual environment:
 ```bash
-conda create --name myenv python=3.6
+conda create --name myenv python=3.6    # Python 3.6 is necessary
 conda activate myenv
 ```
 3. Add the following to ~/.bashrc:
 ```bash
 conda activate myenv
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/iqapple/.mujoco/mjpro150/bin
-export MUJOCO_GL="egl"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/<username>/.mujoco/mjpro210/bin   # Change based on mujoco version
+export MUJOCO_GL="egl"  # System specific
 ```
 and run:
 ```bash
@@ -28,5 +39,5 @@ pip install .
 
 ## Cite
 ```bash
-
+Wang, Y., Vasan, G., & Mahmood, A. R. (2022). Real-Time Reinforcement Learning for Vision-Based Robotics Utilizing Local and Remote Computers. arXiv preprint arXiv:2210.02317.
 ```
