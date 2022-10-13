@@ -11,12 +11,12 @@ from multiprocessing import Array, Value
 
 from senseact.rtrl_base_env import RTRLBaseEnv
 from senseact.devices.ur import ur_utils
-from envs.visual_ur5_reacher.ur_setup import setups
+from relod.envs.visual_ur5_reacher.ur_setup import setups
 from senseact.sharedbuffer import SharedBuffer
 from senseact import utils
 import cv2 as cv
-from envs.visual_ur5_reacher.camera_communicator import CameraCommunicator, DEFAULT_HEIGHT, DEFAULT_WIDTH
-from envs.visual_ur5_reacher.monitor_communicator import MonitorCommunicator
+from relod.envs.visual_ur5_reacher.camera_communicator import CameraCommunicator, DEFAULT_HEIGHT, DEFAULT_WIDTH
+from relod.envs.visual_ur5_reacher.monitor_communicator import MonitorCommunicator
 
 class ReacherEnv(RTRLBaseEnv, gym.core.Env):
     """A class implementing Visual-UR5 Reaching and tracking environments.

@@ -1,4 +1,4 @@
-from envs.visual_ur5_reacher.reacher_env_min_time import ReacherEnv
+from relod.envs.visual_ur5_reacher.reacher_env_min_time import ReacherEnv
 import numpy as np
 from senseact.utils import NormalizedEnv
 import cv2, math
@@ -7,6 +7,8 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
+from tqdm import tqdm
+import torch
 
 class MonitorTarget:
     def __init__(self):
@@ -246,60 +248,119 @@ class VisualReacherMinTimeEnv:
     def close(self):
         self._env.close()
         
-def random_policy_done_2_done_length():
-    # Monitor
+# def random_policy_done_2_done_length():
+#     # Monitor
+#     mt = MonitorTarget()
+#     mt.reset_plot()
+    
+#     input('go?')
+#     seed = 1
+#     np.random.seed(seed)
+#     total_dones = 50
+#     task = "visual ur5 reacher min time"
+#     episode_length_time = 30.0
+#     dt = 0.04
+#     size_tol = 0.015
+#     env = VisualReacherMinTimeEnv(seed=seed, episode_length=episode_length_time, dt=dt, size_tol=size_tol)
+
+#     # Experiment
+#     timeout = int(episode_length_time/dt)
+#     done_2_done_lens = []
+#     steps = 0
+#     while len(done_2_done_lens) < total_dones:
+#         env.reset()
+#         mt.reset_plot()
+#         epi_steps = 0
+#         done = 0
+#         done_2_done_steps = 0
+#         resets = 0
+#         while not done:
+#             action = env.action_space.sample()
+
+#             # step in the environment
+#             _, _, _, done, _ = env.step(action)
+
+#             # Log
+#             steps += 1
+#             epi_steps += 1
+#             done_2_done_steps += 1
+
+#             # Termination
+#             if epi_steps == timeout:
+#                 resets += 1
+#                 env.reset()
+#                 mt.reset_plot()
+#                 epi_steps = 0
+
+#         done_2_done_lens.append(done_2_done_steps)
+#         print('-'*50)
+#         print('Episode: {}, done_2_done steps: {},resets: {}, total steps: {}'.format(len(done_2_done_lens), done_2_done_steps, resets, steps))
+#         print('-'*50)
+
+#     with open(task+"_random_stat.txt", 'w') as out_file:
+#         for length in done_2_done_lens:
+#             out_file.write(str(length)+'\n')
+
+#         out_file.write(f"\nMean: {mean(done_2_done_lens)}")
+
+def ranndom_policy_hits_vs_timeout():
+    total_steps = 20000
     mt = MonitorTarget()
     mt.reset_plot()
-    
     input('go?')
-    seed = 1
-    np.random.seed(seed)
-    total_dones = 50
-    task = "visual ur5 reacher min time"
-    episode_length_time = 30.0
-    dt = 0.04
-    size_tol = 0.015
-    env = VisualReacherMinTimeEnv(seed=seed, episode_length=episode_length_time, dt=dt, size_tol=size_tol)
+    steps_record = open(f"visual_ur5_steps_record.txt", 'w')
+    hits_record = open(f"visual_ur5_random_stat.txt", 'w')
+    for epi_len in [30]:
+        timeout = int(epi_len//0.04)
+        for seed in tqdm(range(5)):
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+            env = VisualReacherMinTimeEnv(seed=seed, episode_length=epi_len)
+            steps_record.write(f"epi_length={epi_len}s, seed={seed}: ")
+            # Experiment
+            hits = 0
+            steps = 0
+            epi_steps = 0
 
-    # Experiment
-    timeout = int(episode_length_time/dt)
-    done_2_done_lens = []
-    steps = 0
-    while len(done_2_done_lens) < total_dones:
-        env.reset()
-        mt.reset_plot()
-        epi_steps = 0
-        done = 0
-        done_2_done_steps = 0
-        resets = 0
-        while not done:
-            action = env.action_space.sample()
+            image, _ = env.reset()
+            # image = np.transpose(image, [1, 2, 0])
+            # image = image[:,:,-3:]
+            # cv2.imshow("", image)
+            # cv2.waitKey(0)
+            
+            while steps < total_steps:
+                action = np.random.normal(size=env.action_space.shape)
 
-            # step in the environment
-            _, _, _, done, _ = env.step(action)
+                # Receive reward and next state            
+                _, _, _, done, _ = env.step(action)
+                
+                # print("Step: {}, Next Obs: {}, reward: {}, done: {}".format(steps, next_obs, reward, done))
 
-            # Log
-            steps += 1
-            epi_steps += 1
-            done_2_done_steps += 1
+                # Log
+                steps += 1
+                epi_steps += 1
 
-            # Termination
-            if epi_steps == timeout:
-                resets += 1
-                env.reset()
-                mt.reset_plot()
-                epi_steps = 0
+                # Termination
+                if done or epi_steps == timeout:
+                    env.reset()
+                    
+                    epi_steps = 0
 
-        done_2_done_lens.append(done_2_done_steps)
-        print('-'*50)
-        print('Episode: {}, done_2_done steps: {},resets: {}, total steps: {}'.format(len(done_2_done_lens), done_2_done_steps, resets, steps))
-        print('-'*50)
+                    if done:
+                        hits += 1
+                        mt.reset_plot()
+                    else:
+                        steps += 75
+                        
+                    steps_record.write(str(steps)+', ')
 
-    with open(task+"_random_stat.txt", 'w') as out_file:
-        for length in done_2_done_lens:
-            out_file.write(str(length)+'\n')
+            steps_record.write('\n')
+            hits_record.write(f"epi_length={epi_len}s, seed={seed}: {hits}\n")
+            env.reset()
+            env.close()
 
-        out_file.write(f"\nMean: {mean(done_2_done_lens)}")
+    steps_record.close()
+    hits_record.close()
 
 if __name__ == '__main__':
     # np.random.seed(0)
@@ -322,5 +383,4 @@ if __name__ == '__main__':
     #             success += 1
     #         print('episodes:', episodes)
     #         print('success:', success)
-    random_policy_done_2_done_length()
-    exit()
+    ranndom_policy_hits_vs_timeout()
