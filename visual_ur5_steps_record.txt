@@ -1,5 +1,0 @@
-epi_length=30s, seed=0: 
-epi_length=30s, seed=1: 
-epi_length=30s, seed=2: 
-epi_length=30s, seed=3: 144, 
-epi_length=30s, seed=4: 
