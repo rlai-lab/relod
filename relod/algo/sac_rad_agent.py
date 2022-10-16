@@ -63,28 +63,25 @@ class SACRADPerformer(BasePerformer):
         self._actor.load_state_dict(actor_weights)
         self._critic.load_state_dict(critic_weights)
 
-    def sample_action(self, ob, step):
+    def sample_action(self, ob):
         # sample action for data collection
-        if step < self._args.init_steps:
-            action = self._args.env_action_space.sample()
-        else:
-            with utils.eval_mode(self):
-                (image, propri) = ob
+        with utils.eval_mode(self):
+            (image, propri) = ob
 
-                with torch.no_grad():
-                    if image is not None:
-                        image = torch.FloatTensor(image).to(self._args.device)
-                        image.unsqueeze_(0)
+            with torch.no_grad():
+                if image is not None:
+                    image = torch.FloatTensor(image).to(self._args.device)
+                    image.unsqueeze_(0)
 
-                    if propri is not None:
-                        propri = torch.FloatTensor(propri).to(self._args.device)
-                        propri.unsqueeze_(0)
+                if propri is not None:
+                    propri = torch.FloatTensor(propri).to(self._args.device)
+                    propri.unsqueeze_(0)
 
-                    _, pi, _, _ = self._actor(
-                        image, propri, random_rad=False, compute_pi=True, compute_log_pi=False,
-                    )
+                _, pi, _, _ = self._actor(
+                    image, propri, random_rad=False, compute_pi=True, compute_log_pi=False,
+                )
 
-                    action = pi.cpu().data.numpy().flatten()
+                action = pi.cpu().data.numpy().flatten()
 
         return action
 

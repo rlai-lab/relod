@@ -247,61 +247,6 @@ class VisualReacherMinTimeEnv:
 
     def close(self):
         self._env.close()
-        
-# def random_policy_done_2_done_length():
-#     # Monitor
-#     mt = MonitorTarget()
-#     mt.reset_plot()
-    
-#     input('go?')
-#     seed = 1
-#     np.random.seed(seed)
-#     total_dones = 50
-#     task = "visual ur5 reacher min time"
-#     episode_length_time = 30.0
-#     dt = 0.04
-#     size_tol = 0.015
-#     env = VisualReacherMinTimeEnv(seed=seed, episode_length=episode_length_time, dt=dt, size_tol=size_tol)
-
-#     # Experiment
-#     timeout = int(episode_length_time/dt)
-#     done_2_done_lens = []
-#     steps = 0
-#     while len(done_2_done_lens) < total_dones:
-#         env.reset()
-#         mt.reset_plot()
-#         epi_steps = 0
-#         done = 0
-#         done_2_done_steps = 0
-#         resets = 0
-#         while not done:
-#             action = env.action_space.sample()
-
-#             # step in the environment
-#             _, _, _, done, _ = env.step(action)
-
-#             # Log
-#             steps += 1
-#             epi_steps += 1
-#             done_2_done_steps += 1
-
-#             # Termination
-#             if epi_steps == timeout:
-#                 resets += 1
-#                 env.reset()
-#                 mt.reset_plot()
-#                 epi_steps = 0
-
-#         done_2_done_lens.append(done_2_done_steps)
-#         print('-'*50)
-#         print('Episode: {}, done_2_done steps: {},resets: {}, total steps: {}'.format(len(done_2_done_lens), done_2_done_steps, resets, steps))
-#         print('-'*50)
-
-#     with open(task+"_random_stat.txt", 'w') as out_file:
-#         for length in done_2_done_lens:
-#             out_file.write(str(length)+'\n')
-
-#         out_file.write(f"\nMean: {mean(done_2_done_lens)}")
 
 def ranndom_policy_hits_vs_timeout():
     total_steps = 20000
