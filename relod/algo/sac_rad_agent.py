@@ -77,10 +77,11 @@ class SACRADPerformer(BasePerformer):
                     propri = torch.FloatTensor(propri).to(self._args.device)
                     propri.unsqueeze_(0)
 
-                _, pi, _, _ = self._actor(
+                mu, pi, _, log_std = self._actor(
                     image, propri, random_rad=False, compute_pi=True, compute_log_pi=False,
                 )
-
+                # print('mu:', mu.cpu().data.numpy().flatten())
+                # print('std:', log_std.exp().cpu().data.numpy().flatten())
                 action = pi.cpu().data.numpy().flatten()
 
         return action

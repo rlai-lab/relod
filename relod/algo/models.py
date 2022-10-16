@@ -156,7 +156,7 @@ def squash(mu, pi, log_pi):
     return mu, pi, log_pi
 
 LOG_STD_MIN = -10
-LOG_STD_MAX = 2
+LOG_STD_MAX = 10
 
 class ActorModel(nn.Module):
     """MLP actor network."""

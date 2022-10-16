@@ -54,7 +54,6 @@ def parse_args():
     parser.add_argument('--size_tol', default=0.015, type=float)
     parser.add_argument('--center_tol', default=0.1, type=float)
     parser.add_argument('--reward_tol', default=2.0, type=float)
-    parser.add_argument('--reward_tol', default=2.0, type=float)
     parser.add_argument('--reset_penalty_steps', default=70, type=int)
     parser.add_argument('--reward', default=-1, type=float)
     # replay buffer
@@ -195,7 +194,7 @@ def main():
     sub_epi = 0
     returns = []
     epi_lens = []
-    start_time = datetime.now()
+    start_time = time.time()
     print(f'Experiment starts at: {start_time}')
 
     while not experiment_done:
@@ -214,6 +213,10 @@ def main():
             cv2.waitKey(1)
 
             # select an action
+            # if total_steps < args.init_steps:
+            #     action = env.action_space.sample()
+            # else:
+            #     action = agent.sample_action((image, prop))
             action = agent.sample_action((image, prop))
 
             # step in the environment
@@ -260,7 +263,7 @@ def main():
             utils.save_returns(args.work_dir+'/return.txt', returns, epi_lens)
             utils.show_learning_curve(args.work_dir+'/curve.png', returns, epi_lens, xtick=5000)
 
-    duration = datetime.now() - start_time
+    duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)
 
     # Clean up
