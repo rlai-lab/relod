@@ -4,7 +4,7 @@ import os
 import random
 import matplotlib.pyplot as plt
 
-def save_returns(self, fname, rets, ep_lens):
+def save_returns(fname, rets, ep_lens):
         """ Save learning curve data as a numpy text file 
         Args:
             rets (list/array): A list or array of episodic returns
@@ -43,7 +43,7 @@ def smoothed_curve(returns, ep_lens, x_tick=5000, window_len=5000):
 
     return np.array(rets), np.array(x)
 
-def show_learning_curve(self, fname, rets, ep_lens, xtick, xlimit=None, ylimit=None, save_fig=True):
+def show_learning_curve(fname, rets, ep_lens, xtick, xlimit=None, ylimit=None, save_fig=True):
         plot_rets, plot_x = smoothed_curve(
                 np.array(rets), np.array(ep_lens), x_tick=xtick, window_len=xtick)
         
@@ -95,10 +95,8 @@ def set_seed_everywhere(seed, env=None):
         env.action_space.seed(seed)
 
 def make_dir(dir_path):
-    try:
-        os.mkdir(dir_path)
-    except OSError:
-        pass
+    os.makedirs(dir_path, exist_ok=False)
+    
     return dir_path
 
 def random_augment(images, rad_height, rad_width):
