@@ -116,7 +116,7 @@ def main():
 
     if mode == MODE.EVALUATION:
         args.image_dir = args.work_dir+'image'
-        utils.make_dir(args.image_dir)
+        os.makedirs(args.image_dir)
     
     if not 'conv' in config:
         image_shape = (0, 0, 0)
