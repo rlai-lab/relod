@@ -115,7 +115,7 @@ def main():
         L = Logger(args.return_dir, use_tb=args.save_tb)
 
     if mode == MODE.EVALUATION:
-        args.image_dir = args.work_dir+'image'
+        args.image_dir = args.work_dir+'/images'
         os.makedirs(args.image_dir)
     
     if not 'conv' in config:
