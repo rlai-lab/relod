@@ -4,6 +4,7 @@ import relod.utils as utils
 import time
 import numpy as np
 import cv2
+import os
 
 from relod.logger import Logger
 from relod.algo.comm import MODE
@@ -121,17 +122,14 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/results/{args.env}_' \
-                     f'dt={args.dt}_bs={args.batch_size}_' \
-                     f'target_type={args.target_type}_'\
-                     f'dim={args.image_width}*{args.image_height}_{args.seed}_'+args.description
-
-    args.model_dir = args.work_dir+'/model'
+    args.work_dir += f'/results/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.model_dir = args.work_dir+'/models'
+    args.return_dir = args.work_dir+'/returns'
 
     if mode == MODE.LOCAL_ONLY:
-        utils.make_dir(args.work_dir)
-        utils.make_dir(args.model_dir)
-        L = Logger(args.work_dir, use_tb=args.save_tb)
+        os.makedirs(args.model_dir, exist_ok=False)
+        os.makedirs(args.return_dir, exist_ok=False)
+        L = Logger(args.return_dir, use_tb=args.save_tb)
 
     if mode == MODE.EVALUATION:
         args.image_dir = args.work_dir+'image'
@@ -185,10 +183,6 @@ def main():
         agent.performer.sample_action((image, prop))
         agent.performer.sample_action((image, prop))
         agent.performer.sample_action((image, prop))
-    
-    # while True:        
-    #     mt.reset_plot()
-    #     time.sleep(1)
 
     # Experiment block starts
     experiment_done = False
@@ -259,8 +253,7 @@ def main():
             L.log('train/episode_return', ret, total_steps)
             L.log('train/episode', len(returns), total_steps)
             L.dump(total_steps)
-            utils.save_returns(args.work_dir+'/return.txt', returns, epi_lens)
-            # utils.show_learning_curve(args.work_dir+'/curve.png', returns, epi_lens, xtick=5000)
+            utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)

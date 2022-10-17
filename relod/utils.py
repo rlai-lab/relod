@@ -94,11 +94,6 @@ def set_seed_everywhere(seed, env=None):
         env.seed(seed)
         env.action_space.seed(seed)
 
-def make_dir(dir_path):
-    os.makedirs(dir_path, exist_ok=False)
-    
-    return dir_path
-
 def random_augment(images, rad_height, rad_width):
     n, c, h, w = images.shape
     _h = h - 2 * rad_height

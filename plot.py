@@ -1,58 +1,50 @@
-import seaborn as sn
+import seaborn as sns
 import matplotlib.pyplot as plt
-import statistics as stat
-import pandas
-from os import walk
+import os
+import pandas as pd
+from pathlib import Path
+from statistics import mean
 
-root = 'results/'
-_, exps, _ = next(walk(root))
-plot_intervals = {
-                  "roomba local remote visual reacher": 1600,
-                  "ur5 local only async visual reacher": 1000,
-                  "ur5 local only sync visual reacher": 1000,
-                  "ur5 local remote min time reacher": 1200,
-                  "ur5 local remote visual reacher": 1000
-                 }
+if __name__ == "__main__":
+    res_dir = Path(__file__).parent/'backups'
+    envs = next(os.walk(res_dir))[1]
+    plot_interval = 1200
 
-for exp in exps:
-    df = pandas.DataFrame(columns=["step", "avg_ret", "seed"])
-    _, runs, _ = next(walk(root+exp))
-    plot_interval = 5000
-    for run in runs:
-        if run == 'plots':
-            continue
+    for env in envs:
+        tasks = next(os.walk(res_dir/env))[1]
+        for task in tasks:
+            df = pd.DataFrame(columns=["step", "avg_ret", "seed", "timeout"])
+            timeouts = next(os.walk(res_dir/env/task))[1]
+            for timeout in timeouts:
+                seeds = next(os.walk(res_dir/env/task/timeout))[1]
+                for seed in seeds:
+                    return_folder = res_dir/env/task/timeout/seed/'returns'
+                    filename = next(return_folder.glob("*.txt"))
 
-        seed = run[-1]
-        with open(root+exp+'/'+run+"/train.log") as f:
-            episodes = f.readlines()
+                    with open(filename, 'r') as return_file:
+                        epi_steps = [int(float(step)) for step in return_file.readline().split()]
+                        returns = [int(float(ret)) for ret in return_file.readline().split()]
+            
+                    steps = 0
+                    end_step = plot_interval
+                    rets = []
+                    for (i, epi_s) in enumerate(epi_steps):
+                        steps += epi_s
+                        ret = returns[i]
+                        if steps > end_step:
+                            if len(rets) > 0:
+                                df = df.append({'step':end_step, 'avg_ret':mean(rets), 'seed':seed, 'timeout': timeout}, ignore_index=True) 
 
-        returns = []
-        end_step = plot_interval
-        for epi in episodes: 
-            epi_dict = eval(epi)
-            step = epi_dict['step']+1
-            if step > end_step:
-                if len(returns) > 0:
-                    df = df.append({'step':end_step, 'avg_ret':stat.mean(returns), 'seed':seed}, ignore_index=True)
-                    returns = []
-
-                while end_step < step:
-                    end_step += plot_interval
-
-            returns.append(epi_dict['episode_reward'])
-        
-        plt.figure()
-        sn.lineplot(x="step", y='avg_ret', data=df[df['seed']==seed])
-        plt.xlabel('step')
-        plt.ylabel('return')
-        plt.title(exp)
-        plt.savefig(root+exp+'/plots/'+run+'.png')
-        plt.close()
-
-    plt.figure()
-    sn.lineplot(x="step", y='avg_ret', data=df)
-    plt.xlabel('step')
-    plt.ylabel('return')
-    plt.title(exp)
-    plt.savefig(root+exp+'/plots/combined.png')
-    plt.close()
+                                rets = []
+                            while end_step < steps:
+                                end_step += plot_interval
+                        
+                        rets.append(ret)
+                
+            plt.ylim(-1000, 0)
+            
+            sns.lineplot(x="step", y='avg_ret', data=df, hue='timeout', palette='bright')
+            title = f'{task} {env} learning curves, penalty 20'
+            plt.title(title)
+            plt.savefig(title+'.png')
+            plt.close()
