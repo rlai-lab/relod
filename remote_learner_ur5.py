@@ -36,7 +36,7 @@ class MonitorTarget:
             (self.radius + self.margin + x * (self.width - 2*self.radius - 2*self.margin),
              self.radius + self.margin + y * (self.height - 2*self.radius - 2*self.margin))
         )
-
+        print()
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         time.sleep(0.032)

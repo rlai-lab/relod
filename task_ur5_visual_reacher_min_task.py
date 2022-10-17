@@ -10,9 +10,7 @@ from relod.algo.comm import MODE
 from relod.algo.local_wrapper import LocalWrapper
 from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from relod.envs.visual_ur5_reacher.configs.ur5_config import config
-from relod.envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv
-from remote_learner_ur5 import MonitorTarget
-
+from relod.envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv, MonitorTarget
 
 config = {
     
@@ -188,6 +186,10 @@ def main():
         agent.performer.sample_action((image, prop))
         agent.performer.sample_action((image, prop))
     
+    # while True:        
+    #     mt.reset_plot()
+    #     time.sleep(1)
+
     # Experiment block starts
     experiment_done = False
     total_steps = 0
@@ -198,7 +200,8 @@ def main():
     print(f'Experiment starts at: {start_time}')
 
     while not experiment_done:
-        mt.reset_plot() # start a new episode
+        if mode == MODE.LOCAL_ONLY:
+            x, y = mt.reset_plot() # start a new episode
         image, prop = env.reset() 
         agent.send_init_ob((image, prop))
         ret = 0
@@ -213,10 +216,6 @@ def main():
             cv2.waitKey(1)
 
             # select an action
-            # if total_steps < args.init_steps:
-            #     action = env.action_space.sample()
-            # else:
-            #     action = agent.sample_action((image, prop))
             action = agent.sample_action((image, prop))
 
             # step in the environment
@@ -248,6 +247,7 @@ def main():
                 ret += args.reset_penalty_steps * args.reward
                 print(f'Sub episode {sub_epi} done.')
 
+                mt.reset_plot(x, y)
                 image, prop = env.reset()
                 agent.send_init_ob((image, prop))
 
