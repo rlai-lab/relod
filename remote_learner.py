@@ -3,6 +3,7 @@ import argparse
 from relod.algo.remote_wrapper import RemoteWrapper
 from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from relod.logger import Logger
+from relod.envs.visual_ur5_min_time_reacher.env import MonitorTarget
 import time
 import relod.utils as utils
 import os

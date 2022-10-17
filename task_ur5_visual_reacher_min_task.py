@@ -83,10 +83,10 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
+    parser.add_argument('--mode', default='rl', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
-    parser.add_argument('--description', default='size_margin=20', type=str)
-    parser.add_argument('--seed', default=1, type=int)
+    parser.add_argument('--description', default='test new remote script', type=str)
+    parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
@@ -109,12 +109,9 @@ def main():
         mode = MODE.REMOTE_ONLY
     elif args.mode == 'l':
         mode = MODE.LOCAL_ONLY
-        mt = MonitorTarget()
     elif args.mode == 'rl':
         mode = MODE.REMOTE_LOCAL
     elif args.mode == 'e':
-        mt = MonitorTarget()
-        mt.reset_plot()
         mode = MODE.EVALUATION
     else:
         raise  NotImplementedError()
@@ -152,6 +149,7 @@ def main():
     )
 
     utils.set_seed_everywhere(args.seed, None)
+    mt = MonitorTarget()
     mt.reset_plot()
     input('go?')
     image, prop = env.reset()
@@ -191,10 +189,8 @@ def main():
     epi_lens = []
     start_time = time.time()
     print(f'Experiment starts at: {start_time}')
-
     while not experiment_done:
-        if mode == MODE.LOCAL_ONLY:
-            mt.reset_plot() # start a new episode
+        mt.reset_plot() # start a new episode
         image, prop = env.reset() 
         agent.send_init_ob((image, prop))
         ret = 0
