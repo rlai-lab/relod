@@ -110,8 +110,8 @@ def main():
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
     os.makedirs(args.model_dir, exist_ok=False)
+    os.makedirs(args.return_dir, exist_ok=False)
     if mode == MODE.LOCAL_ONLY:
-        os.makedirs(args.return_dir, exist_ok=False)
         L = Logger(args.return_dir, use_tb=args.save_tb)
 
     if mode == MODE.EVALUATION:
@@ -169,7 +169,7 @@ def main():
         (image, propri) = env.reset()
 
         # First inference took a while (~1 min), do it before the agent-env interaction loop
-        if mode != MODE.REMOTE_ONLY:
+        if mode != MODE.REMOTE_ONLY and total_steps == 0:
             agent.performer.sample_action((image, propri))
             agent.performer.sample_action((image, propri))
             agent.performer.sample_action((image, propri))

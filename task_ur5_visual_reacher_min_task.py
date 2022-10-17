@@ -123,8 +123,8 @@ def main():
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
     os.makedirs(args.model_dir, exist_ok=False)
+    os.makedirs(args.return_dir, exist_ok=False)
     if mode == MODE.LOCAL_ONLY:
-        os.makedirs(args.return_dir, exist_ok=False)
         L = Logger(args.return_dir, use_tb=args.save_tb)
 
     if mode == MODE.EVALUATION:
