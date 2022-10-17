@@ -3,7 +3,6 @@ import argparse
 from relod.algo.remote_wrapper import RemoteWrapper
 from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from relod.logger import Logger
-from relod.envs.visual_ur5_min_time_reacher.env import MonitorTarget
 import time
 import relod.utils as utils
 import os
@@ -25,6 +24,8 @@ def main():
     agent = RemoteWrapper(port=server_args.port)
     args = agent.recv_data()
 
+    args.model_dir = 'remote/'+args.model_dir
+    args.return_dir = 'remote/'+args.return_dir
     os.makedirs(args.model_dir, exist_ok=False)
     os.makedirs(args.return_dir, exist_ok=False)
     L = Logger(args.return_dir, use_tb=args.save_tb)
