@@ -6,7 +6,7 @@ from pathlib import Path
 from statistics import mean
 
 if __name__ == "__main__":
-    res_dir = Path(__file__).parent/'backups'
+    res_dir = Path(__file__).parent/'plots'
     envs = next(os.walk(res_dir))[1]
     plot_interval = 1200
 

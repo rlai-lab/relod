@@ -86,7 +86,7 @@ def parse_args():
     parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
     parser.add_argument('--description', default='size_margin=20', type=str)
-    parser.add_argument('--seed', default=3, type=int)
+    parser.add_argument('--seed', default=1, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
@@ -250,7 +250,7 @@ def main():
             returns.append(ret)
             epi_lens.append(epi_steps)
             L.log('train/duration', time.time() - epi_start_time, total_steps)
-            L.log('train/episode_return', ret, total_steps)
+            L.log('train/episode_reward', ret, total_steps)
             L.log('train/episode', len(returns), total_steps)
             L.dump(total_steps)
             utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
@@ -259,6 +259,7 @@ def main():
     agent.save_policy_to_file(args.model_dir, total_steps)
 
     # Clean up
+    env.reset()
     agent.close()
     env.close()
     print(f"Finished in {duration}")
