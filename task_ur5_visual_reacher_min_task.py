@@ -90,7 +90,7 @@ def parse_args():
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
-    #parser.add_argument('--save_buffer', default=False, action='store_true')
+    parser.add_argument('--plot_learning_curve', default=False, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
@@ -245,14 +245,17 @@ def main():
 
             experiment_done = total_steps >= args.env_steps
 
-        if epi_done and mode == MODE.LOCAL_ONLY: # episode done, save result
+        if epi_done: # episode done, save result
             returns.append(ret)
             epi_lens.append(epi_steps)
-            L.log('train/duration', time.time() - epi_start_time, total_steps)
-            L.log('train/episode_reward', ret, total_steps)
-            L.log('train/episode', len(returns), total_steps)
-            L.dump(total_steps)
             utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
+            if mode == MODE.LOCAL_ONLY:
+                L.log('train/duration', time.time() - epi_start_time, total_steps)
+                L.log('train/episode_reward', ret, total_steps)
+                L.log('train/episode', len(returns), total_steps)
+                L.dump(total_steps)
+                if args.plot_learning_curve:
+                    utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=1200)
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)

@@ -7,7 +7,6 @@ import time
 import relod.utils as utils
 import os
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -25,15 +24,14 @@ def main():
     agent = RemoteWrapper(port=server_args.port)
     args = agent.recv_data()
 
-    utils.make_dir(args.work_dir)
-
-    model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-    args.model_dir = model_dir
+    os.makedirs(args.model_dir, exist_ok=False)
+    os.makedirs(args.return_dir, exist_ok=False)
+    L = Logger(args.return_dir, use_tb=args.save_tb)
 
     agent.init_performer(SACRADPerformer, args)
     agent.init_learner(SACRADLearner, args, agent.performer)
 
-    # sync initial weights with oboard
+    # sync initial weights with the local-agent
     agent.send_policy()
 
     utils.set_seed_everywhere(args.seed)
@@ -43,54 +41,85 @@ def main():
     else:
         args.device = server_args.device
 
-    L = Logger(args.work_dir, use_tb=args.save_tb)
-
-    episode, episode_reward, episode_step, done = 0, 0, 0, True
     episode_length_step = int(args.episode_length_time / args.dt)
-    (image, propri) = agent.receive_init_ob()
+    
+    # Experiment block starts
+    experiment_done = False
+    total_steps = 0
+    sub_epi = 0
+    returns = []
+    epi_lens = []
     start_time = time.time()
-    for step in range(args.env_steps + args.init_steps):
-        action = agent.sample_action((image, propri), step)
-        
-        (reward, (next_image, next_propri), done, kwargs) = agent.receive_sample_from_onboard()
-        
-        episode_reward += reward
-        episode_step += 1
+    print(f'Experiment starts at: {start_time}')
 
-        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done, **kwargs)
-
-        if done or (episode_step == episode_length_step): # set time out here
-            L.log('train/duration', time.time() - start_time, step)
-            L.log('train/episode_reward', episode_reward, step)
-            L.dump(step)
-            agent.learner.pause_update()
-            (next_image, next_propri) = agent.receive_init_ob()
-            agent.learner.resume_update()
-            episode_reward = 0
-            episode_step = 0
-            episode += 1
-            L.log('train/episode', episode, step)
-            start_time = time.time()
+    while not experiment_done:
+        agent.learner.pause_update()
+        (image, propri) = agent.receive_init_ob()
+        agent.learner.resume_update()
+        ret = 0
+        epi_steps = 0
+        sub_steps = 0
+        epi_done = 0
+        epi_start_time = time.time()
+        while not experiment_done and not epi_done:
+            # select an action
+            action = agent.sample_action((image, propri))
             
-        stat = agent.update_policy(step)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
+            # receive sample
+            (reward, (next_image, next_propri), epi_done, kwargs) = agent.receive_sample_from_onboard()
 
-        (image, propri) = (next_image, next_propri)
+            # store
+            agent.push_sample((image, propri), action, reward, (next_image, next_propri), epi_done, **kwargs)
 
-        if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(args.model_dir, step)
+            stat = agent.update_policy(total_steps)
+            if stat is not None:
+                for k, v in stat.items():
+                    L.log(k, v, total_steps)
+
+            image = next_image
+            propri = next_propri
+
+            # Log
+            total_steps += 1
+            ret += reward
+            epi_steps += 1
+            sub_steps += 1
+
+            if args.save_model and total_steps % args.save_model_freq == 0:
+                agent.save_policy_to_file(args.model_dir, total_steps)
+
+            if total_steps > args.init_steps and total_steps % args.update_every == 0:
+                agent.send_policy()
+
+            if not epi_done and sub_steps >= episode_length_step: # set time out here
+                sub_steps = 0
+                sub_epi += 1
+                ret += args.reset_penalty_steps * args.reward
+                print(f'Sub episode {sub_epi} done.')
+                agent.learner.pause_update()
+                (image, propri) = agent.receive_init_ob()
+                agent.learner.resume_update()
+            
+            experiment_done = total_steps >= args.env_steps
         
-        if step > args.init_steps and (step+1) % args.update_every == 0:
-            agent.send_policy()
+        if epi_done: # episode done, save result
+            returns.append(ret)
+            epi_lens.append(epi_steps)
+            utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
 
-    if args.save_model:
-        agent.save_policy_to_file(args.model_dir, step)
+            L.log('train/duration', time.time() - epi_start_time, total_steps)
+            L.log('train/episode_reward', ret, total_steps)
+            L.log('train/episode', len(returns), total_steps)
+            L.dump(total_steps)
+            if args.plot_learning_curve:
+                utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=1500)
+
+    duration = time.time() - start_time
+    agent.save_policy_to_file(args.model_dir, total_steps)
 
     agent.learner.pause_update()
     agent.close()
-    print('Train finished')
+    print(f"Finished in {duration}s")
 
 if __name__ == '__main__':
     main()
