@@ -1,7 +1,7 @@
 import torch
 import argparse
 import relod.utils as utils
-import time, datetime
+import time
 import numpy as np
 import cv2
 
@@ -85,7 +85,7 @@ def parse_args():
     parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
     parser.add_argument('--description', default='size_margin=20', type=str)
-    parser.add_argument('--seed', default=4, type=int)
+    parser.add_argument('--seed', default=3, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
@@ -201,7 +201,7 @@ def main():
 
     while not experiment_done:
         if mode == MODE.LOCAL_ONLY:
-            x, y = mt.reset_plot() # start a new episode
+            mt.reset_plot() # start a new episode
         image, prop = env.reset() 
         agent.send_init_ob((image, prop))
         ret = 0
@@ -247,7 +247,6 @@ def main():
                 ret += args.reset_penalty_steps * args.reward
                 print(f'Sub episode {sub_epi} done.')
 
-                mt.reset_plot(x, y)
                 image, prop = env.reset()
                 agent.send_init_ob((image, prop))
 
@@ -261,7 +260,7 @@ def main():
             L.log('train/episode', len(returns), total_steps)
             L.dump(total_steps)
             utils.save_returns(args.work_dir+'/return.txt', returns, epi_lens)
-            utils.show_learning_curve(args.work_dir+'/curve.png', returns, epi_lens, xtick=5000)
+            # utils.show_learning_curve(args.work_dir+'/curve.png', returns, epi_lens, xtick=5000)
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)

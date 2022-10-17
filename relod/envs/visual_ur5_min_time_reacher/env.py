@@ -29,25 +29,18 @@ class MonitorTarget:
         figManager = plt.get_current_fig_manager()
         figManager.full_screen_toggle()
 
-    def reset_plot(self, x=None, y=None):
-        if x is None:
-            x, y = np.random.random(2)
+    def reset_plot(self):
+        x, y = np.random.random(2)
 
         self.target.set_center(
             (self.radius + self.margin + x * (self.width - 2*self.radius - 2*self.margin),
              self.radius + self.margin + y * (self.height - 2*self.radius - 2*self.margin))
         )
-        # self.target.set_center((31.680966140738953, 61.43950683771249))
-        loc1 = self.radius + self.margin + x * (self.width - 2*self.radius - 2*self.margin)
-        loc2= self.radius + self.margin + y * (self.height - 2*self.radius - 2*self.margin)
-        print('loc1:', loc1)
-        print('loc2:', loc2)
+        
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         
         time.sleep(0.032)
-
-        return x, y
 
 def get_mask(image):
     image = np.transpose(image, [1,2,0])
