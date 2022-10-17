@@ -44,6 +44,8 @@ def parse_args():
     parser.add_argument('--stack_frames', default=3, type=int)
     parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--min_target_size', default=0.2, type=float)
+    parser.add_argument('--reset_penalty_steps', default=67, type=int)
+    parser.add_argument('--reward', default=-1, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -74,6 +76,7 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='rl', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
+    parser.add_argument('--description', default='', type=str)
     parser.add_argument('--seed', default=3, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
@@ -102,25 +105,13 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    if not args.async_mode:
-        version = 'SAC_sync'
-    elif args.async_mode and args.lock:
-        version = 'SACv1'
-    elif args.async_mode:
-        version = 'SAC_async'
-    else:
-        raise NotImplementedError('Not a supported mode!')
-
-    args.work_dir += f'/results/{version}_{args.target_type}_' \
-                     f'dt={args.dt}_' \
-                     f'seed={args.seed}_' \
-                     f'target_size={args.min_target_size}/'
-    args.model_dir = args.work_dir+'model'
-
+    args.work_dir += f'/results/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.model_dir = args.work_dir+'/models'
+    args.return_dir = args.work_dir+'/returns'
+    os.makedirs(args.model_dir, exist_ok=False)
     if mode == MODE.LOCAL_ONLY:
-        utils.make_dir(args.work_dir)
-        utils.make_dir(args.model_dir)
-        L = Logger(args.work_dir, use_tb=args.save_tb)
+        os.makedirs(args.return_dir, exist_ok=False)
+        L = Logger(args.return_dir, use_tb=args.save_tb)
 
     if mode == MODE.EVALUATION:
         args.image_dir = args.work_dir+'image'
@@ -161,71 +152,90 @@ def main():
     if args.load_model > -1:
         agent.load_policy_from_file(args.model_dir, args.load_model)
             
-    episode, episode_reward, episode_step, done = 0, 0, 0, True
     if mode == MODE.EVALUATION:
         episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
     
-    (image, propri) = env.reset()
-
-    # First inference took a while (~1 min), do it before the agent-env interaction loop
-    if mode != MODE.REMOTE_ONLY:
-        agent.performer.sample_action((image, propri), args.init_steps+1)
-
     if mode == MODE.EVALUATION and args.load_model > -1:
         args.init_steps = 0
-    
-    agent.send_init_ob((image, propri))
+
+    # Experiment block starts
+    experiment_done = False
+    total_steps = 0
+    sub_epi = 0
+    returns = []
+    epi_lens = []
     start_time = time.time()
-    for step in range(args.env_steps + args.init_steps):
-        if mode == MODE.EVALUATION:
-            image_to_save = np.transpose(image, [1, 2, 0])
-            image_to_save = image_to_save[:,:,0:3]
-            cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
+    print(f'Experiment starts at: {start_time}')
 
-        action = agent.sample_action((image, propri), step)
+    while not experiment_done:
+        (image, propri) = env.reset()
 
-        # step in the environment
-        (next_image, next_propri), reward, done, _ = env.step(action)
+        # First inference took a while (~1 min), do it before the agent-env interaction loop
+        if mode != MODE.REMOTE_ONLY:
+            agent.performer.sample_action((image, propri))
+            agent.performer.sample_action((image, propri))
+            agent.performer.sample_action((image, propri))
 
-        episode_reward += reward
-        episode_step += 1
+        agent.send_init_ob((image, propri))
+        ret = 0
+        epi_steps = 0
+        sub_steps = 0
+        epi_done = 0
+        epi_start_time = time.time()
+        while not experiment_done and not epi_done:
+            # select an action
+            action = agent.sample_action((image, propri))
 
-        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
+            # step in the environment
+            (next_image, next_propri), reward, done, _ = env.step(action)
 
-        if done or (episode_step == episode_length_step): # set time out here
-            if mode == MODE.LOCAL_ONLY:
-                L.log('train/duration', time.time() - start_time, step)
-                L.log('train/episode_reward', episode_reward, step)
-                L.dump(step)
-                L.log('train/episode', episode+1, step)
+            # store
+            agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
 
-            (next_image, next_propri) = env.reset()
-            agent.send_init_ob((next_image, next_propri))
-            episode_reward = 0
-            episode_step = 0
-            episode += 1
-            if mode == MODE.EVALUATION:
-                episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
-            start_time = time.time()
-        
-        stat = agent.update_policy(step)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
-        
-        image = next_image
-        propri = next_propri
+            stat = agent.update_policy(total_steps)
+            if mode == MODE.LOCAL_ONLY and stat is not None:
+                for k, v in stat.items():
+                    L.log(k, v, total_steps)
+            
+            image = next_image
+            propri = next_propri
 
-        if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(args.model_dir, step)
+            # Log
+            total_steps += 1
+            ret += reward
+            epi_steps += 1
+            sub_steps += 1
 
-    if args.save_model:
-        agent.save_policy_to_file(args.model_dir, step)
+            if args.save_model and total_steps % args.save_model_freq == 0:
+                agent.save_policy_to_file(args.model_dir, total_steps)
+
+            if not epi_done and sub_steps >= episode_length_step: # set timeout here
+                sub_steps = 0
+                sub_epi += 1
+                ret += args.reset_penalty_steps * args.reward
+                print(f'Sub episode {sub_epi} done.')
+
+                (image, propri) = env.reset()
+                agent.send_init_ob((image, propri))
+            
+            experiment_done = total_steps >= args.env_steps
+
+        if epi_done and mode == MODE.LOCAL_ONLY: # episode done, save result
+            returns.append(ret)
+            epi_lens.append(epi_steps)
+            L.log('train/duration', time.time() - epi_start_time, total_steps)
+            L.log('train/episode_reward', ret, total_steps)
+            L.log('train/episode', len(returns), total_steps)
+            L.dump(total_steps)
+            utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
+
+    duration = time.time() - start_time
+    agent.save_policy_to_file(args.model_dir, total_steps)
 
     # Clean up
     agent.close()
     env.close()
-    print('Train finished')
+    print(f"Finished in {duration}s")
 
 if __name__ == '__main__':
     main()

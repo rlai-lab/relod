@@ -125,9 +125,8 @@ def main():
     args.work_dir += f'/results/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
-
+    os.makedirs(args.model_dir, exist_ok=False)
     if mode == MODE.LOCAL_ONLY:
-        os.makedirs(args.model_dir, exist_ok=False)
         os.makedirs(args.return_dir, exist_ok=False)
         L = Logger(args.return_dir, use_tb=args.save_tb)
 
@@ -262,7 +261,7 @@ def main():
     env.reset()
     agent.close()
     env.close()
-    print(f"Finished in {duration}")
+    print(f"Finished in {duration}s")
 
 if __name__ == '__main__':
     main()
