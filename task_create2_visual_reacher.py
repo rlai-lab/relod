@@ -36,7 +36,7 @@ config = {
 def parse_args():
     parser = argparse.ArgumentParser()
     # environment
-    parser.add_argument('--target_type', default='create2_visual_reacher', type=str)
+    parser.add_argument('--env', default='create2_visual_reacher', type=str)
     parser.add_argument('--episode_length_time', default=30.0, type=float)
     parser.add_argument('--dt', default=0.045, type=float)
     parser.add_argument('--image_height', default=120, type=int)
@@ -72,7 +72,7 @@ def parse_args():
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     # agent
-    parser.add_argument('--remote_ip', default='192.168.0.100', type=str)
+    parser.add_argument('--remote_ip', default='192.168.0.101', type=str)
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='rl', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc

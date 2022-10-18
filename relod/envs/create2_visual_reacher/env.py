@@ -16,7 +16,7 @@ from senseact.rtrl_base_env import RTRLBaseEnv
 from senseact.devices.create2.create2_communicator import Create2Communicator
 from senseact.envs.create2.create2_observation import Create2ObservationFactory
 from senseact.sharedbuffer import SharedBuffer
-from envs.create2_visual_reacher.depstech_camera_communicator import CameraCommunicator
+from relod.envs.create2_visual_reacher.depstech_camera_communicator import CameraCommunicator
 import cv2
 from statistics import mean
 
