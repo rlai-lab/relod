@@ -83,14 +83,17 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='rl', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
+    parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
     parser.add_argument('--description', default='test new remote script', type=str)
-    parser.add_argument('--seed', default=0, type=int)
+    parser.add_argument('--seed', default=3, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
-    parser.add_argument('--save_model', default=True, action='store_true')
+    parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=False, action='store_true')
+    parser.add_argument('--xtick', default=1200, type=int)
+    parser.add_argument('--display_image', default=True, action='store_true')
+    parser.add_argument('--save_image', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
@@ -127,9 +130,10 @@ def main():
     if mode == MODE.LOCAL_ONLY:
         L = Logger(args.return_dir, use_tb=args.save_tb)
 
-    if mode == MODE.EVALUATION:
-        args.image_dir = args.work_dir+'image'
-        utils.make_dir(args.image_dir)
+    if args.save_image:
+        args.image_dir = args.work_dir+'/images'
+        if mode == MODE.LOCAL_ONLY:
+            os.makedirs(args.image_dir, exist_ok=False)
 
     env = VisualReacherMinTimeEnv(
         setup = args.setup,
@@ -199,10 +203,14 @@ def main():
         epi_done = 0
         epi_start_time = time.time()
         while not experiment_done and not epi_done:
-            image_to_show = np.transpose(image, [1, 2, 0])
-            image_to_show = image_to_show[:,:,-3:]
-            cv2.imshow('raw', image_to_show)
-            cv2.waitKey(1)
+            if args.display_image or (mode == MODE.LOCAL_ONLY and args.save_image):
+                image_to_show = np.transpose(image, [1, 2, 0])
+                image_to_show = image_to_show[:,:,-3:]
+                if mode == MODE.LOCAL_ONLY and args.save_image:
+                    cv2.imwrite(args.image_dir+f'/episode={len(returns)+1}/{epi_steps}.png', image_to_show)
+                if args.display_image:
+                    cv2.imshow('raw', image_to_show)
+                    cv2.waitKey(1)
 
             # select an action
             action = agent.sample_action((image, prop))
@@ -241,17 +249,24 @@ def main():
 
             experiment_done = total_steps >= args.env_steps
 
+        # save the last image
+        if mode == MODE.LOCAL_ONLY and args.save_image:
+            image_to_show = np.transpose(image, [1, 2, 0])
+            image_to_show = image_to_show[:,:,-3:]
+            cv2.imwrite(args.image_dir+f'/episode={len(returns)+1}/{epi_steps}.png', image_to_show)
+
         if epi_done: # episode done, save result
             returns.append(ret)
             epi_lens.append(epi_steps)
             utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
+
             if mode == MODE.LOCAL_ONLY:
                 L.log('train/duration', time.time() - epi_start_time, total_steps)
                 L.log('train/episode_reward', ret, total_steps)
                 L.log('train/episode', len(returns), total_steps)
                 L.dump(total_steps)
                 if args.plot_learning_curve:
-                    utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=1200)
+                    utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)
@@ -260,6 +275,10 @@ def main():
     env.reset()
     agent.close()
     env.close()
+
+    # always show a learning curve at the end
+    if mode == MODE.LOCAL_ONLY:
+        utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
     print(f"Finished in {duration}s")
 
 if __name__ == '__main__':

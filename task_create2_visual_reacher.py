@@ -80,8 +80,10 @@ def parse_args():
     parser.add_argument('--seed', default=3, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
-    parser.add_argument('--save_model', default=True, action='store_true')
+    parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=True, action='store_true')
+    parser.add_argument('--xtick', default=1500, type=int)
+    parser.add_argument('--save_image', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
@@ -91,11 +93,9 @@ def parse_args():
 
 def main():
     args = parse_args()
-
+    assert args.mode != 'l', "Jetson nano doesn't support local-only"
     if args.mode == 'r':
         mode = MODE.REMOTE_ONLY
-    elif args.mode == 'l':
-        mode = MODE.LOCAL_ONLY
     elif args.mode == 'rl':
         mode = MODE.REMOTE_LOCAL
     elif args.mode == 'e':
@@ -111,12 +111,9 @@ def main():
     args.return_dir = args.work_dir+'/returns'
     os.makedirs(args.model_dir, exist_ok=False)
     os.makedirs(args.return_dir, exist_ok=False)
-    if mode == MODE.LOCAL_ONLY:
-        L = Logger(args.return_dir, use_tb=args.save_tb)
-
-    if mode == MODE.EVALUATION:
+    
+    if args.save_image:
         args.image_dir = args.work_dir+'/images'
-        os.makedirs(args.image_dir)
     
     if not 'conv' in config:
         image_shape = (0, 0, 0)
@@ -164,7 +161,6 @@ def main():
     epi_lens = []
     start_time = time.time()
     print(f'Experiment starts at: {start_time}')
-
     while not experiment_done:
         (image, propri) = env.reset()
 
@@ -179,7 +175,6 @@ def main():
         epi_steps = 0
         sub_steps = 0
         epi_done = 0
-        epi_start_time = time.time()
         while not experiment_done and not epi_done:
             # select an action
             action = agent.sample_action((image, propri))
@@ -190,10 +185,7 @@ def main():
             # store
             agent.push_sample((image, propri), action, reward, (next_image, next_propri), epi_done)
 
-            stat = agent.update_policy(total_steps)
-            if mode == MODE.LOCAL_ONLY and stat is not None:
-                for k, v in stat.items():
-                    L.log(k, v, total_steps)
+            agent.update_policy(total_steps)
             
             image = next_image
             propri = next_propri
@@ -222,14 +214,6 @@ def main():
             returns.append(ret)
             epi_lens.append(epi_steps)
             utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
-
-            if mode == MODE.LOCAL_ONLY:
-                L.log('train/duration', time.time() - epi_start_time, total_steps)
-                L.log('train/episode_reward', ret, total_steps)
-                L.log('train/episode', len(returns), total_steps)
-                L.dump(total_steps)
-                if args.plot_learning_curve:
-                    utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=1500)
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)

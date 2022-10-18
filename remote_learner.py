@@ -6,6 +6,8 @@ from relod.logger import Logger
 import time
 import relod.utils as utils
 import os
+import cv2
+import numpy as np
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -29,6 +31,10 @@ def main():
     os.makedirs(args.model_dir, exist_ok=False)
     os.makedirs(args.return_dir, exist_ok=False)
     L = Logger(args.return_dir, use_tb=args.save_tb)
+
+    if args.save_image:
+        args.image_dir = 'remote/'+args.image_dir
+        os.makedirs(args.image_dir, exist_ok=False)
 
     agent.init_performer(SACRADPerformer, args)
     agent.init_learner(SACRADLearner, args, agent.performer)
@@ -64,6 +70,11 @@ def main():
         epi_done = 0
         epi_start_time = time.time()
         while not experiment_done and not epi_done:
+            if args.save_image:
+                image_to_show = np.transpose(image, [1, 2, 0])
+                image_to_show = image_to_show[:,:,-3:]
+                cv2.imwrite(args.image_dir+f'/episode={len(returns)+1}/{epi_steps}.png', image_to_show)
+
             # select an action
             action = agent.sample_action((image, propri))
             
@@ -104,6 +115,12 @@ def main():
             
             experiment_done = total_steps >= args.env_steps
         
+        # save the last image
+        if args.save_image:
+            image_to_show = np.transpose(image, [1, 2, 0])
+            image_to_show = image_to_show[:,:,-3:]
+            cv2.imwrite(args.image_dir+f'/episode={len(returns)+1}/{epi_steps}.png', image_to_show)
+
         if epi_done: # episode done, save result
             returns.append(ret)
             epi_lens.append(epi_steps)
@@ -114,13 +131,16 @@ def main():
             L.log('train/episode', len(returns), total_steps)
             L.dump(total_steps)
             if args.plot_learning_curve:
-                utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=1500)
+                utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
 
     duration = time.time() - start_time
+    agent.learner.pause_update()
     agent.save_policy_to_file(args.model_dir, total_steps)
 
-    agent.learner.pause_update()
     agent.close()
+    
+    # always show a learning curve at the end
+    utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
     print(f"Finished in {duration}s")
 
 if __name__ == '__main__':
