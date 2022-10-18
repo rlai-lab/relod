@@ -130,6 +130,7 @@ dmypy.json
 plots/
 results/
 backups/
+remote/
 *err
 *out
 

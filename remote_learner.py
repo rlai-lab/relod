@@ -68,12 +68,16 @@ def main():
         epi_steps = 0
         sub_steps = 0
         epi_done = 0
+        if args.save_image:
+            episode_image_dir = args.image_dir+f'/episode={len(returns)+1}/'
+            os.makedirs(episode_image_dir, exist_ok=False)
+
         epi_start_time = time.time()
         while not experiment_done and not epi_done:
             if args.save_image:
                 image_to_show = np.transpose(image, [1, 2, 0])
                 image_to_show = image_to_show[:,:,-3:]
-                cv2.imwrite(args.image_dir+f'/episode={len(returns)+1}/{epi_steps}.png', image_to_show)
+                cv2.imwrite(episode_image_dir+f'{epi_steps}.png', image_to_show)
 
             # select an action
             action = agent.sample_action((image, propri))
@@ -119,7 +123,7 @@ def main():
         if args.save_image:
             image_to_show = np.transpose(image, [1, 2, 0])
             image_to_show = image_to_show[:,:,-3:]
-            cv2.imwrite(args.image_dir+f'/episode={len(returns)+1}/{epi_steps}.png', image_to_show)
+            cv2.imwrite(episode_image_dir+f'{epi_steps}.png', image_to_show)
 
         if epi_done: # episode done, save result
             returns.append(ret)
