@@ -2,7 +2,63 @@ import torch
 import numpy as np
 import os
 import random
-import pickle
+import matplotlib.pyplot as plt
+
+def save_returns(fname, rets, ep_lens):
+        """ Save learning curve data as a numpy text file 
+        Args:
+            rets (list/array): A list or array of episodic returns
+            ep_lens (list/array):  A list or array of episodic length
+            savepath (str): Save path
+        """
+        data = np.zeros((2, len(rets)))
+        data[0] = ep_lens
+        data[1] = rets
+        np.savetxt(fname, data)
+
+def smoothed_curve(returns, ep_lens, x_tick=5000, window_len=5000):
+    """
+    Args:
+        returns: 1-D numpy array with episodic returs
+        ep_lens: 1-D numpy array with episodic returs
+        x_tick (int): Bin size
+        window_len (int): Length of averaging window
+    Returns:
+        A numpy array
+    """
+    rets = []
+    x = []
+    cum_episode_lengths = np.cumsum(ep_lens)
+
+    if cum_episode_lengths[-1] >= x_tick:
+        y = cum_episode_lengths[-1] + 1
+        steps_show = np.arange(x_tick, y, x_tick)
+
+        for i in range(len(steps_show)):
+            rets_in_window = returns[(cum_episode_lengths > max(0, x_tick * (i + 1) - window_len)) *
+                                     (cum_episode_lengths < x_tick * (i + 1))]
+            if rets_in_window.any():
+                rets.append(np.mean(rets_in_window))
+                x.append((i+1) * x_tick)
+
+    return np.array(rets), np.array(x)
+
+def show_learning_curve(fname, rets, ep_lens, xtick, xlimit=None, ylimit=None, save_fig=True):
+        plot_rets, plot_x = smoothed_curve(
+                np.array(rets), np.array(ep_lens), x_tick=xtick, window_len=xtick)
+        
+        if len(plot_rets):
+            plt.clf()
+            if xlimit is not None:
+                plt.xlim(xlimit)
+        
+            if ylimit is not None:
+                plt.ylim(ylimit)
+                
+            plt.plot(plot_x, plot_rets)
+            plt.pause(0.001)
+            if save_fig:
+                plt.savefig(fname)
 
 def soft_update_params(net, target_net, tau):
     for param, target_param in zip(net.parameters(), target_net.parameters()):
@@ -37,13 +93,6 @@ def set_seed_everywhere(seed, env=None):
     if env is not None:
         env.seed(seed)
         env.action_space.seed(seed)
-
-def make_dir(dir_path):
-    try:
-        os.mkdir(dir_path)
-    except OSError:
-        pass
-    return dir_path
 
 def random_augment(images, rad_height, rad_width):
     n, c, h, w = images.shape

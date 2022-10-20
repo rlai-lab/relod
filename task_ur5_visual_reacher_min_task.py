@@ -2,6 +2,8 @@ import torch
 import argparse
 import relod.utils as utils
 import time
+import numpy as np
+import cv2
 import os
 
 from relod.logger import Logger
@@ -9,10 +11,7 @@ from relod.algo.comm import MODE
 from relod.algo.local_wrapper import LocalWrapper
 from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from relod.envs.visual_ur5_reacher.configs.ur5_config import config
-from relod.envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv
-from remote_learner_ur5 import MonitorTarget
-import numpy as np
-import cv2
+from relod.envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv, MonitorTarget
 
 config = {
     
@@ -54,6 +53,8 @@ def parse_args():
     parser.add_argument('--size_tol', default=0.015, type=float)
     parser.add_argument('--center_tol', default=0.1, type=float)
     parser.add_argument('--reward_tol', default=2.0, type=float)
+    parser.add_argument('--reset_penalty_steps', default=70, type=int)
+    parser.add_argument('--reward', default=-1, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -84,18 +85,24 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
-    parser.add_argument('--description', default='size_margin=20', type=str)
-    parser.add_argument('--seed', default=4, type=int)
+    parser.add_argument('--description', default='test new remote script', type=str)
+    parser.add_argument('--seed', default=3, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
-    parser.add_argument('--save_model', default=True, action='store_true')
-    #parser.add_argument('--save_buffer', default=False, action='store_true')
+    parser.add_argument('--save_model', default=False, action='store_true')
+    parser.add_argument('--plot_learning_curve', default=False, action='store_true')
+    parser.add_argument('--xtick', default=1200, type=int)
+    parser.add_argument('--display_image', default=True, action='store_true')
+    parser.add_argument('--save_image', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
 
     args = parser.parse_args()
+    assert args.mode in ['r', 'l', 'rl', 'e']
+    assert args.reward < 0 and args.reset_penalty_steps >= 0
+
     return args
 
 def main():
@@ -105,13 +112,9 @@ def main():
         mode = MODE.REMOTE_ONLY
     elif args.mode == 'l':
         mode = MODE.LOCAL_ONLY
-        mt = MonitorTarget()
-        
     elif args.mode == 'rl':
         mode = MODE.REMOTE_LOCAL
     elif args.mode == 'e':
-        mt = MonitorTarget()
-        mt.reset_plot()
         mode = MODE.EVALUATION
     else:
         raise  NotImplementedError()
@@ -119,21 +122,18 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/results/{args.env}_' \
-                     f'dt={args.dt}_bs={args.batch_size}_' \
-                     f'target_type={args.target_type}_'\
-                     f'dim={args.image_width}*{args.image_height}_{args.seed}_'+args.description
-
-    args.model_dir = args.work_dir+'/model'
-
+    args.work_dir += f'/results/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.model_dir = args.work_dir+'/models'
+    args.return_dir = args.work_dir+'/returns'
+    os.makedirs(args.model_dir, exist_ok=False)
+    os.makedirs(args.return_dir, exist_ok=False)
     if mode == MODE.LOCAL_ONLY:
-        utils.make_dir(args.work_dir)
-        utils.make_dir(args.model_dir)
-        L = Logger(args.work_dir, use_tb=args.save_tb)
+        L = Logger(args.return_dir, use_tb=args.save_tb)
 
-    if mode == MODE.EVALUATION:
-        args.image_dir = args.work_dir+'image'
-        utils.make_dir(args.image_dir)
+    if args.save_image:
+        args.image_dir = args.work_dir+'/images'
+        if mode == MODE.LOCAL_ONLY:
+            os.makedirs(args.image_dir, exist_ok=False)
 
     env = VisualReacherMinTimeEnv(
         setup = args.setup,
@@ -153,9 +153,7 @@ def main():
     )
 
     utils.set_seed_everywhere(args.seed, None)
-    mt.reset_plot()
-    mt.reset_plot()
-    mt.reset_plot()
+    mt = MonitorTarget()
     mt.reset_plot()
     input('go?')
     image, prop = env.reset()
@@ -181,75 +179,111 @@ def main():
     if args.load_model > -1:
         agent.load_policy_from_file(args.model_dir, args.load_model)
     
-    episode, episode_reward, episode_step, done = 0, 0, 0, True
-    if mode == MODE.EVALUATION:
-        episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
     # First inference took a while (~1 min), do it before the agent-env interaction loop
     if mode != MODE.REMOTE_ONLY:
-        agent.performer.sample_action((image, prop), args.init_steps+1)
+        agent.performer.sample_action((image, prop))
+        agent.performer.sample_action((image, prop))
+        agent.performer.sample_action((image, prop))
 
-    if mode == MODE.EVALUATION and args.load_model > -1:
-        args.init_steps = 0
-    
-    agent.send_init_ob((image, prop))
-    success = 0
+    # Experiment block starts
+    experiment_done = False
+    total_steps = 0
+    sub_epi = 0
+    returns = []
+    epi_lens = []
     start_time = time.time()
-    for step in range(args.env_steps + args.init_steps):
-        image_to_show = np.transpose(image, [1, 2, 0])
-        image_to_show = image_to_show[:,:,-3:]
-        cv2.imshow('raw', image_to_show)
-        cv2.waitKey(1)
+    print(f'Experiment starts at: {start_time}')
+    while not experiment_done:
+        mt.reset_plot() # start a new episode
+        image, prop = env.reset() 
+        agent.send_init_ob((image, prop))
+        ret = 0
+        epi_steps = 0
+        sub_steps = 0
+        epi_done = 0
+        if mode == MODE.LOCAL_ONLY and args.save_image:
+            episode_image_dir = args.image_dir+f'/episode={len(returns)+1}/'
+            os.makedirs(episode_image_dir, exist_ok=False)
 
-        action = agent.sample_action((image, prop), step)
-        # step in the environment
-        next_image, next_prop, reward, done, _ = env.step(action)
+        epi_start_time = time.time()
+        while not experiment_done and not epi_done:
+            if args.display_image or (mode == MODE.LOCAL_ONLY and args.save_image):
+                image_to_show = np.transpose(image, [1, 2, 0])
+                image_to_show = image_to_show[:,:,-3:]
+                if mode == MODE.LOCAL_ONLY and args.save_image:
+                    cv2.imwrite(episode_image_dir+f'{epi_steps}.png', image_to_show)
+                if args.display_image:
+                    cv2.imshow('raw', image_to_show)
+                    cv2.waitKey(1)
 
-        episode_reward += reward
-        episode_step += 1
-        
-        agent.push_sample((image, prop), action, reward, (next_image, next_prop), done)
+            # select an action
+            action = agent.sample_action((image, prop))
 
-        if done or (episode_step == episode_length_step): # set time out here
-            if done:
-                success += 1
+            # step in the environment
+            next_image, next_prop, reward, epi_done, _ = env.step(action)
+
+            # store
+            agent.push_sample((image, prop), action, reward, (next_image, next_prop), epi_done)
+
+            stat = agent.update_policy(total_steps)
+            if mode == MODE.LOCAL_ONLY and stat is not None:
+                for k, v in stat.items():
+                    L.log(k, v, total_steps)
+
+            image = next_image
+            prop = next_prop
+
+            # Log
+            total_steps += 1
+            ret += reward
+            epi_steps += 1
+            sub_steps += 1
+
+            if args.save_model and total_steps % args.save_model_freq == 0:
+                agent.save_policy_to_file(args.model_dir, total_steps)
+
+            if not epi_done and sub_steps >= episode_length_step: # set timeout here
+                sub_steps = 0
+                sub_epi += 1
+                ret += args.reset_penalty_steps * args.reward
+                print(f'Sub episode {sub_epi} done.')
+
+                image, prop = env.reset()
+                agent.send_init_ob((image, prop))
+
+            experiment_done = total_steps >= args.env_steps
+
+        # save the last image
+        if mode == MODE.LOCAL_ONLY and args.save_image:
+            image_to_show = np.transpose(image, [1, 2, 0])
+            image_to_show = image_to_show[:,:,-3:]
+            cv2.imwrite(episode_image_dir+f'{epi_steps}.png', image_to_show)
+
+        if epi_done: # episode done, save result
+            returns.append(ret)
+            epi_lens.append(epi_steps)
+            utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
 
             if mode == MODE.LOCAL_ONLY:
-                L.log('train/duration', time.time() - start_time, step)
-                L.log('train/episode_reward', episode_reward, step)
-                L.log('train/episode', episode+1, step)
-                L.dump(step)
-                mt.reset_plot()
+                L.log('train/duration', time.time() - epi_start_time, total_steps)
+                L.log('train/episode_reward', ret, total_steps)
+                L.log('train/episode', len(returns), total_steps)
+                L.dump(total_steps)
+                if args.plot_learning_curve:
+                    utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
 
-            next_image, next_prop = env.reset()
-            agent.send_init_ob((next_image, next_prop))
-            episode_reward = 0
-            episode_step = 0
-            episode += 1
-            if mode == MODE.EVALUATION:
-                episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
-                mt.reset_plot()
-            success_rate = success / episode
-            print('success rate:', success_rate)
-            start_time = time.time()
+    duration = time.time() - start_time
+    agent.save_policy_to_file(args.model_dir, total_steps)
 
-        stat = agent.update_policy(step)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
-        
-        image = next_image
-        prop = next_prop
-
-        if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(args.model_dir, step)
-
-    if args.save_model:
-        agent.save_policy_to_file(args.model_dir, step)
-        
     # Clean up
+    env.reset()
     agent.close()
     env.close()
-    print('Train finished')
+
+    # always show a learning curve at the end
+    if mode == MODE.LOCAL_ONLY:
+        utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
+    print(f"Finished in {duration}s")
 
 if __name__ == '__main__':
     main()
