@@ -1,0 +1,33 @@
+experiment:
+  name: gvf_test_experiment
+  env-name: franka-robot-v1
+  agent: random  #  expert / random
+  batch-id: m1_random
+  batch-num: 1000
+  start-batch-id: 22
+  episode-num-per-batch: 100  # num of episodes
+  max-step-num: 100  # num of maximum steps per episode
+  cuda-deterministic: False # sets flags for determinism when using CUDA (potentially slow!)
+  cuda: True # enable CUDA training
+  gpu: 0  # which gpu to use
+  seed: 88 # random seed
+
+environment:
+  reward_func: default
+  safe-bound-box: [[ 0.3, 0.7 ], [ -0.3, 0.3 ], [ 0.08, 0.4 ]]  # x, y, z
+  target-box: [[ 0.5, 0.7 ], [ -0.1, 0.1 ], [ 0.05, .1 ]]
+  reset-bound: [ [0.0, 0.0], [0.27, 0.27], [0.0, 0.0], [-2.63, -2.63], [-0.0, 0.0], [2.9,2.9], [-0.8, -0.8] ]  # from j1 to j7
+  #[-0.0, 0.27081145469830065, 0.06996474562402417, -2.6364789397726724, -0.08122778824302886, 2.9057876121997834, 0.842086730364296]
+  reference-mode: True
+  reference-pose: [0.55574284, -0.00261663,  0.41947602, 0.00481207048651576, -0.999129854465064, 0.031463624214124, 0.0269521473275211 ]  # for the assembly from disassembly approach to get cumulants.
+  ids-cam-id: 0
+  image-width: 240
+  image-height: 240
+  visualization: False
+  terminal-reward-classifier: False
+  joint-angle-bound: [[-0.5, 0.5], [0, 1.2], [-0.5, 0.5], [-2.8, -0.2], [-0.4, 0.4], [1.7, 2.96], [-0.9, 0.9]] # for all 7 joints
+  return-point: [-0.0, 0.13, 0.02, -1.9, 0.03, 2.1, 0.8]
+  
+  
+#reset-bound: [ [ -0.0752,0.056 ], [ -0.2537, -0.1737 ], [ -0.1172, 0.1021 ], [ -2.307, -2.1756 ], [ -0.2076, 0.2488 ], [ 2.112, 2.5 ], [ 0.3232,1.3665 ] ]  # from j1 to j7
+#safe-bound-box: [[ 0.3240, 0.7720 ], [ 0.0035, 0.2123 ], [ 0.13781, 0.4224 ]]  # x, y, z
