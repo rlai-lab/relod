@@ -12,6 +12,7 @@ from relod.algo.local_wrapper import LocalWrapper
 from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from relod.envs.visual_ur5_reacher.configs.ur5_config import config
 from relod.envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv, MonitorTarget
+from tqdm import tqdm
 
 config = {
     
@@ -185,6 +186,11 @@ def main():
         agent.performer.sample_action((image, prop))
         agent.performer.sample_action((image, prop))
 
+    # branch here
+    if args.run_type == 'init_policy_test':
+        run_init_policy_test(agent, args)
+        return
+
     # Experiment block starts
     experiment_done = False
     total_steps = 0
@@ -284,6 +290,79 @@ def main():
     if mode == MODE.LOCAL_ONLY:
         utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
     print(f"Finished in {duration}s")
+
+def run_init_policy_test(agent, args):
+    timeouts = [int(30//args.dt)] 
+    steps_record = open(f"{args.env}_steps_record.txt", 'w')
+    hits_record = open(f"{args.env}_random_stat.txt", 'w')
+
+    for timeout in timeouts:
+        for seed in tqdm(range(5)):
+            args.seed = seed
+            env = VisualReacherMinTimeEnv(
+                setup = args.setup,
+                ip = args.ur5_ip,
+                seed = args.seed,
+                camera_id = args.camera_id,
+                image_width = args.image_width,
+                image_height = args.image_height,
+                target_type = args.target_type,
+                image_history = args.image_history,
+                joint_history = args.joint_history,
+                episode_length = args.episode_length_time,
+                dt = args.dt,
+                size_tol = args.size_tol,
+                center_tol = args.center_tol,
+                reward_tol = args.reward_tol,
+            )
+
+            utils.set_seed_everywhere(args.seed, None)
+
+            steps_record.write(f"timeout={timeout}, seed={seed}: ")
+            # Experiment
+            hits = 0
+            steps = 0
+            epi_steps = 0
+            mt = MonitorTarget()
+            mt.reset_plot()
+            image, prop = env.reset()
+            while steps < args.env_steps:
+                action = agent.sample_action((image, prop))
+
+                # Receive reward and next state            
+                _, _, done, _ = env.step(action)
+                
+                # print("Step: {}, Next Obs: {}, reward: {}, done: {}".format(steps, next_obs, reward, done))
+
+                # Log
+                steps += 1
+                epi_steps += 1
+
+                # Termination
+                if done or epi_steps == timeout:
+                    if done:
+                        mt.reset_plot()
+
+                    env.reset()
+                        
+                    epi_steps = 0
+
+                    if done:
+                        hits += 1
+                    else:
+                        steps += 20
+                        
+                    steps_record.write(str(steps)+', ')
+
+            steps_record.write('\n')
+            hits_record.write(f"timeout={timeout}, seed={seed}: {hits}\n")
+
+            env.reset()
+            env.close()
+
+    steps_record.close()
+    hits_record.close()
+    agent.close()
 
 if __name__ == '__main__':
     main()
