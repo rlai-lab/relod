@@ -86,6 +86,7 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
+    parser.add_argument('--run_type', default='init_policy_test', type=str)
     parser.add_argument('--description', default='test new remote script', type=str)
     parser.add_argument('--seed', default=3, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -188,6 +189,8 @@ def main():
 
     # branch here
     if args.run_type == 'init_policy_test':
+        del mt
+        env.close()
         run_init_policy_test(agent, args)
         return
 
@@ -292,7 +295,9 @@ def main():
     print(f"Finished in {duration}s")
 
 def run_init_policy_test(agent, args):
-    timeouts = [int(30//args.dt)] 
+    timeouts = [int(30/args.dt)]
+    args.init_steps = 100000000
+    args.env_steps = 20000
     steps_record = open(f"{args.env}_steps_record.txt", 'w')
     hits_record = open(f"{args.env}_random_stat.txt", 'w')
 
@@ -325,12 +330,13 @@ def run_init_policy_test(agent, args):
             epi_steps = 0
             mt = MonitorTarget()
             mt.reset_plot()
+            input('go?')
             image, prop = env.reset()
             while steps < args.env_steps:
                 action = agent.sample_action((image, prop))
 
                 # Receive reward and next state            
-                _, _, done, _ = env.step(action)
+                _, _, _, epi_done, _ = env.step(action)
                 
                 # print("Step: {}, Next Obs: {}, reward: {}, done: {}".format(steps, next_obs, reward, done))
 
@@ -339,18 +345,18 @@ def run_init_policy_test(agent, args):
                 epi_steps += 1
 
                 # Termination
-                if done or epi_steps == timeout:
-                    if done:
+                if epi_done or epi_steps == timeout:
+                    if epi_done:
                         mt.reset_plot()
 
                     env.reset()
                         
                     epi_steps = 0
 
-                    if done:
+                    if epi_done:
                         hits += 1
                     else:
-                        steps += 20
+                        steps += 70
                         
                     steps_record.write(str(steps)+', ')
 
