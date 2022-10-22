@@ -4,6 +4,13 @@ import os
 import random
 import matplotlib.pyplot as plt
 
+def make_dir(dir_path):
+    try:
+        os.mkdir(dir_path)
+    except OSError:
+        pass
+    return dir_path
+
 def save_returns(fname, rets, ep_lens):
         """ Save learning curve data as a numpy text file 
         Args:
