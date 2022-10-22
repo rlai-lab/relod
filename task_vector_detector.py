@@ -1,19 +1,25 @@
 import torch
 import argparse
-import relod.utils as utils
 import time
 import os
+import cv2
+
+import numpy as np
+import relod.utils as utils
+import matplotlib.pyplot as plt
 
 from relod.logger import Logger
 from relod.algo.comm import MODE
 from relod.algo.local_wrapper import LocalWrapper
 from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
-
 from senseact.utils import NormalizedEnv
 from rl_vector.vector.env_color_detector import VectorColorDetector, VectorBallDetector
+from rl_suite.plot.plot import smoothed_curve
+from sys import platform
+if platform == "darwin":    # For MacOS
+    import matplotlib as mpl
+    mpl.use("TKAgg")
 
-import numpy as np
-import cv2
 
 config = {
     'conv': [
@@ -44,6 +50,8 @@ def parse_args():
     parser.add_argument('--stack_frames', default=4, type=int)
     parser.add_argument('--image_height', default=120, type=int)
     parser.add_argument('--image_width', default=160, type=int)
+    parser.add_argument('--reset_penalty_steps', default=67, type=int)
+    parser.add_argument('--reward', default=-1, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -77,7 +85,7 @@ def parse_args():
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
-    parser.add_argument('--save_model_freq', default=10000, type=int)
+    parser.add_argument('--save_model_freq', default=5000, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
@@ -163,77 +171,87 @@ def main():
     if args.load_model > -1:
         agent.load_policy_from_file(args.model_dir, args.load_model)
             
-    episode, episode_reward, episode_step, done = 0, 0, 0, True
-    if mode == MODE.EVALUATION:
-        episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
-    
-    image, propri = env.reset()
-
-    # First inference took a while (~1 min), do it before the agent-env interaction loop
-    if mode != MODE.REMOTE_ONLY:
-        agent.performer.sample_action((image, propri), args.init_steps+1)
-
     if mode == MODE.EVALUATION and args.load_model > -1:
         args.init_steps = 0
-    
-    agent.send_init_ob((image, propri))
+
+    # Experiment block starts
+    experiment_done = False
+    total_steps = 0
+    sub_epi = 0
+    returns = []
+    epi_lens = []
     start_time = time.time()
-    tic = time.time()
-    for step in range(args.env_steps + args.init_steps):
-        if mode == MODE.EVALUATION:
-            image_to_save = np.transpose(image, [1, 2, 0])
-            image_to_save = image_to_save[:,:,0:3]
-            cv2.imwrite(episode_image_dir+'/'+str(step)+'.png', image_to_save)
+    print(f'Experiment starts at: {start_time}')
+    while not experiment_done:
+        image, propri = env.reset()
 
-        action = agent.sample_action((image, propri), step)
+        # First inference took a while (~1 min), do it before the agent-env interaction loop
+        if mode != MODE.REMOTE_ONLY and total_steps == 0:
+            agent.performer.sample_action((image, propri))
+            agent.performer.sample_action((image, propri))
+            agent.performer.sample_action((image, propri))
 
-        # step in the environment
-        next_image, next_propri, reward, done, _ = env.step(action)
+        agent.send_init_ob((image, propri))
+        ret = 0
+        epi_steps = 0
+        sub_steps = 0
+        epi_done = 0
+        while not experiment_done and not epi_done:
+            # select an action
+            action = agent.sample_action((image, propri))
 
-        episode_reward += reward
-        episode_step += 1
+            # step in the environment
+            next_image, next_propri, reward, epi_done, _ = env.step(action)
 
-        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
+            # store
+            agent.push_sample((image, propri), action, reward, (next_image, next_propri), epi_done)
 
-        if done or (episode_step == episode_length_step): # set time out here
-            if mode == MODE.LOCAL_ONLY:
-                L.log('train/duration', time.time() - start_time, step)
-                L.log('train/episode_reward', episode_reward, step)
-                L.dump(step)
-                L.log('train/episode', episode+1, step)
+            agent.update_policy(total_steps)
+            
+            image = next_image
+            propri = next_propri
 
-            (next_image, next_propri) = env.reset()
-            agent.send_init_ob((next_image, next_propri))
-            episode_reward = 0
-            episode_step = 0
-            episode += 1
-            if mode == MODE.EVALUATION:
-                episode_image_dir = utils.make_dir(os.path.join(args.image_dir, str(episode)))
-            start_time = time.time()
-        
-        stat = agent.update_policy(step)
-        if stat is not None:
-            for k, v in stat.items():
-                L.log(k, v, step)
-        
-        if step % 10 == 0:
-            print("Step: {}, Obs: {}, Action: {}, Reward: {:.2f}, Done: {}, dt: {:.3f}".format(
-                step, propri[3:5], action, reward, done, time.time()-tic))
-        
-        tic = time.time()
-        image = next_image
-        propri = next_propri
+            # Log
+            total_steps += 1
+            ret += reward
+            epi_steps += 1
+            sub_steps += 1
 
-        if args.save_model and (step+1) % args.save_model_freq == 0:
-            agent.save_policy_to_file(args.model_dir, step)
+            if args.save_model and total_steps % args.save_model_freq == 0:
+                agent.save_policy_to_file(args.model_dir, total_steps)
+                # Plot
+                plot_rets, plot_x = smoothed_curve(
+                        np.array(returns), np.array(epi_lens), x_tick=args.save_model_freq, window_len=args.save_model_freq)
+                if len(plot_rets):
+                    plt.clf()
+                    plt.plot(plot_x, plot_rets)
+                    plt.pause(0.001)
+                    plt.savefig(args.return_dir+'/learning_curve.pdf', dpi=200)
 
-    if args.save_model:
-        agent.save_policy_to_file(args.model_dir, step)
+            if not epi_done and sub_steps >= episode_length_step: # set timeout here
+                sub_steps = 0
+                sub_epi += 1
+                ret += args.reset_penalty_steps * args.reward
+                print(f'Sub episode {sub_epi} done.')
+
+                (image, propri) = env.reset()
+                agent.send_init_ob((image, propri))
+            
+            experiment_done = total_steps >= args.env_steps
+
+        if epi_done: # episode done, save result
+            returns.append(ret)
+            epi_lens.append(epi_steps)
+            utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
+
+    duration = time.time() - start_time
+    agent.save_policy_to_file(args.model_dir, total_steps)
 
     # Clean up
     agent.close()
     env.close()
-    print('Train finished')
+    print(f"Finished in {duration}s")
 
+    
 if __name__ == '__main__':
     main()
