@@ -37,6 +37,7 @@ def parse_args():
     # environment
     parser.add_argument('--setup', default='Visual-Franka')
     parser.add_argument('--env', default='Visual_Franka_Min_Task_Init_Policy', type=str)
+    parser.add_argument('--camera_id', default=1, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--image_height', default=90, type=int)
     parser.add_argument('--target_type', default='size', type=str)
@@ -114,9 +115,10 @@ def main():
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
     env = FrankaPanda_Visual_Min_Reacher(
+        episode_length=1000,
         image_width=args.image_width,
         image_height=args.image_height,
-        camera_index=1, 
+        camera_index=args.camera_id, 
         size_tol=args.size_tol)
 
     utils.set_seed_everywhere(args.seed, env)
@@ -153,6 +155,7 @@ def main():
 
     steps_record = open(f"results/{args.env}_steps_record.txt", 'w')
     hits_record = open(f"results/{args.env}_random_stat.txt", 'w')
+    small_epi_record = open(f"results/{args.env}_small_epi_stat.txt", 'w')
 
     for timeout in tqdm(timeouts):
         for seed in range(5):
@@ -164,6 +167,7 @@ def main():
             hits = 0
             steps = 0
             epi_steps = 0
+            small_epi = 0
             image, prop = env.reset() 
             while steps < args.N:
                 action = agent.sample_action((image, prop))
@@ -179,23 +183,29 @@ def main():
                     t1 = time.time()
                     env.reset()
                     reset_step = (time.time() - t1) // args.dt
-                    epi_steps = 0
-
+                    
                     if done:
                         hits += 1
+                        if epi_steps <= 3:
+                            small_epi += 1
                     else:
                         steps += reset_step
+
+                    epi_steps = 0
                         
                     steps_record.write(str(steps)+', ')
                     steps_record.flush()
 
             steps_record.write('\n')
             hits_record.write(f"timeout={timeout}, seed={seed}: {hits}\n")
+            small_epi_record.write(f"timeout={timeout}, seed={seed}: {small_epi}\n")
             hits_record.flush()
+            small_epi_record.flush()
     
     env.reset()
     steps_record.close()
     hits_record.close()
+    small_epi_record.close()
 
 if __name__ == '__main__':
     main()

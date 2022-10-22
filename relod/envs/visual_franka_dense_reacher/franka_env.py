@@ -165,7 +165,8 @@ class FrankaPanda_Visual_Reacher_V0(gym.Env):
 
         ## TODO: Update this
         reset_pose = dict(zip(self.joint_names, self.return_point))
-        reset_pose['panda_joint4'] = np.random.uniform(-1.9, -2.3)
+        reset_pose['panda_joint4'] = np.random.uniform(-2.25, -1.9)
+        reset_pose['panda_joint6'] = np.random.uniform(2.05, 2.15)
 
         smoothly_move_to_position_vel(self.robot, self.robot_status, reset_pose ,MAX_JOINT_VELs=1.3)
         # print("here", self.robot.endpoint_pose()["orientation"])
@@ -191,6 +192,10 @@ class FrankaPanda_Visual_Reacher_V0(gym.Env):
         self.reset_time = time.time()
         # self.monitor.reset()
         # return self.camera.get_state(), obs
+
+        # Stabilize the image
+        for i in range(5):
+            self.camera.get_state() 
         
         img = np.transpose(self.camera.get_state(), (2, 1, 0))
 
