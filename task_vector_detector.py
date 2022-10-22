@@ -8,6 +8,7 @@ import numpy as np
 import relod.utils as utils
 import matplotlib.pyplot as plt
 
+from datetime import datetime
 from relod.logger import Logger
 from relod.algo.comm import MODE
 from relod.algo.local_wrapper import LocalWrapper
@@ -89,6 +90,7 @@ def parse_args():
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
+    parser.add_argument('--save_image', default=False, action='store_true')
     args = parser.parse_args()
     return args
 
@@ -109,11 +111,15 @@ def main():
     else:
         raise NotImplementedError('Not a supported mode!')
 
-    args.work_dir += f'/results/{version}_{args.object}_' \
-                     f'dt={args.dt}_' \
-                     f'seed={args.seed}_' \
-                     f'robot_serial={args.robot_serial}/'
-    args.model_dir = args.work_dir+'model'
+    run_id = "{}-VectorDetector-{}-{}".format(datetime.now().strftime("%Y%m%d-%H%M%S"), args.object, args.robot_serial)
+    args.work_dir += f'/results/{run_id}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.model_dir = args.work_dir+'/models'
+    args.return_dir = args.work_dir+'/returns'
+    os.makedirs(args.model_dir, exist_ok=False)
+    os.makedirs(args.return_dir, exist_ok=False)
+    
+    if args.save_image:
+        args.image_dir = args.work_dir+'/images'
 
     if mode == MODE.LOCAL_ONLY:
         utils.make_dir(args.work_dir)
