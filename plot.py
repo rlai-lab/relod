@@ -8,7 +8,7 @@ from statistics import mean
 if __name__ == "__main__":
     res_dir = Path(__file__).parent/'backups'
     envs = next(os.walk(res_dir))[1]
-    plot_interval = 1200
+    plot_interval = 1200 
 
     for env in envs:
         tasks = next(os.walk(res_dir/env))[1]
