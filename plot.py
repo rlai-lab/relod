@@ -6,24 +6,28 @@ from pathlib import Path
 from statistics import mean
 
 if __name__ == "__main__":
-    res_dir = Path(__file__).parent/'backups'
+    # res_dir = Path(__file__).parent/'backups'
+    res_dir = "results"
     envs = next(os.walk(res_dir))[1]
-    plot_interval = 1200 
+    plot_interval = 200 
 
     for env in envs:
-        tasks = next(os.walk(res_dir/env))[1]
+        tasks = next(os.walk(res_dir+'/'+env))[1]
         for task in tasks:
             df = pd.DataFrame(columns=["step", "avg_ret", "seed", "timeout"])
-            timeouts = next(os.walk(res_dir/env/task))[1]
+            timeouts = next(os.walk(res_dir+'/'+env+'/'+task))[1]
             for timeout in timeouts:
-                seeds = next(os.walk(res_dir/env/task/timeout))[1]
+                seeds = next(os.walk(res_dir+'/'+env+'/'+task+'/'+timeout))[1]
                 for seed in seeds:
-                    return_folder = res_dir/env/task/timeout/seed/'returns'
-                    filename = next(return_folder.glob("*.txt"))
+                    return_folder = res_dir+'/'+env+'/'+task+'/'+timeout+'/'+seed+'/'+'returns'
+                    filename = return_folder + '/return.txt'
 
                     with open(filename, 'r') as return_file:
                         epi_steps = [int(float(step)) for step in return_file.readline().split()]
                         returns = [int(float(ret)) for ret in return_file.readline().split()]
+
+                        print(len(epi_steps))
+                        print(len(returns))
             
                     steps = 0
                     end_step = plot_interval
@@ -40,11 +44,13 @@ if __name__ == "__main__":
                                 end_step += plot_interval
                         
                         rets.append(ret)
+                        if steps > 60000:
+                            break
                 
             plt.ylim(-1000, 0)
             
             sns.lineplot(x="step", y='avg_ret', data=df, hue='timeout', palette='bright')
-            title = f'{task} {env} learning curves, penalty 20'
+            title = f'{task} {env} learning curves, precision 0.12'
             plt.title(title)
             plt.savefig(title+'.png')
             plt.close()

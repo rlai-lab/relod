@@ -85,7 +85,7 @@ def parse_args():
     parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
     parser.add_argument('--description', default='test new remote script', type=str)
-    parser.add_argument('--seed', default=1, type=int)
+    parser.add_argument('--seed', default=4, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
