@@ -9,7 +9,7 @@ if __name__ == "__main__":
     # res_dir = Path(__file__).parent/'backups'
     res_dir = "results"
     envs = next(os.walk(res_dir))[1]
-    plot_interval = 200 
+    plot_interval = 1200 
 
     for env in envs:
         tasks = next(os.walk(res_dir+'/'+env))[1]
@@ -50,7 +50,7 @@ if __name__ == "__main__":
             plt.ylim(-1000, 0)
             
             sns.lineplot(x="step", y='avg_ret', data=df, hue='timeout', palette='bright')
-            title = f'{task} {env} learning curves, precision 0.12'
+            title = f'Visual Franka Min Task learning curves, precision 0.12'
             plt.title(title)
             plt.savefig(title+'.png')
             plt.close()
