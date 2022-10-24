@@ -10,13 +10,13 @@ from relod.logger import Logger
 import os
 
 config = {
-    # 'conv': [
-    #     # in_channel, out_channel, kernel_size, stride
-    #     [-1, 32, 3, 2],
-    #     [32, 32, 3, 2],
-    #     [32, 32, 3, 2],
-    #     [32, 32, 3, 1],
-    # ],
+    'conv': [
+        # in_channel, out_channel, kernel_size, stride
+        [-1, 32, 3, 2],
+        [32, 32, 3, 2],
+        [32, 32, 3, 2],
+        [32, 32, 3, 1],
+    ],
     
     'latent': 50,
 
@@ -66,7 +66,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='rl', type=str, help="Modes in ['r', 'l', 'rl'] ")
+    parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl'] ")
     # misc
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -76,7 +76,8 @@ def parse_args():
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
-
+    parser.add_argument('--save_path', default='', type=str, help="For saving SAC buffer")
+    parser.add_argument('--load_path', default='', type=str, help="Path to SAC buffer file")
     args = parser.parse_args()
     return args
 
@@ -133,7 +134,7 @@ def main():
     agent.send_init_ob((image, propri))
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        action = agent.sample_action((image, propri), step)
+        action = agent.sample_action((image, propri))
 
         next_image, next_propri, reward, done, _ = env.step(action)
 
@@ -166,6 +167,8 @@ def main():
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
             agent.save_policy_to_file(args.model_dir, step)
+            agent.save_buffer()
+
 
         time.sleep(0.04)
 
