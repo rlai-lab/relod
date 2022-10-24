@@ -324,6 +324,10 @@ class SACRADLearner(BaseLearner):
         if self._args.async_mode:
             self._sample_queue.put('pause')
     
+    def save_buffer(self):
+        if self._args.async_mode:
+            self._sample_queue.put('save')
+    
     def resume_update(self):
         if self._args.async_mode:
             self._sample_queue.put('resume')

@@ -3,6 +3,7 @@ import argparse
 import time
 import os
 import cv2
+import random
 
 import numpy as np
 import relod.utils as utils
@@ -16,6 +17,7 @@ from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from senseact.utils import NormalizedEnv
 from rl_vector.vector.env_color_detector import VectorColorDetector, VectorBallDetector
 from rl_suite.plot.plot import smoothed_curve
+from tqdm import tqdm
 from sys import platform
 if platform == "darwin":    # For MacOS
     import matplotlib as mpl
@@ -190,6 +192,7 @@ def main():
     print(f'Experiment starts at: {start_time}')
     while not experiment_done:
         image, propri = env.reset()
+        tic = time.time()
 
         # First inference took a while (~1 min), do it before the agent-env interaction loop
         if mode != MODE.REMOTE_ONLY and total_steps == 0:
@@ -223,6 +226,11 @@ def main():
             epi_steps += 1
             sub_steps += 1
 
+            if total_steps % 10 == 0:
+                print("Step: {}, Obs: {}, Action: {}, Reward: {:.2f}, Done: {}, dt: {:.3f}".format(
+                        total_steps, propri[3:5], action, reward, epi_done, time.time()-tic))
+            tic = time.time()
+
             if args.save_model and total_steps % args.save_model_freq == 0:
                 agent.save_policy_to_file(args.model_dir, total_steps)
                 # Plot
@@ -232,7 +240,10 @@ def main():
                     plt.clf()
                     plt.plot(plot_x, plot_rets)
                     plt.pause(0.001)
-                    plt.savefig(args.return_dir+'/learning_curve.pdf', dpi=200)
+                    plt.savefig(args.return_dir+'/learning_curve.png')
+                
+                # Save buffer
+                agent.learner.save_buffer()
 
             if not epi_done and sub_steps >= episode_length_step: # set timeout here
                 sub_steps = 0
@@ -258,6 +269,95 @@ def main():
     env.close()
     print(f"Finished in {duration}s")
 
+
+
+def run_init_policy_test():
+    timeouts = [3, 6, 12, 30]
+
+    args = parse_args()
+    cfg = {
+        "robot_serial": args.robot_serial,
+        "dt": 0.1,
+        "prox_threshold": 0.1,
+        "episode_length_time": 30,
+        "hsv_mask": {
+            # For yellow post-it
+            # "low": [89, 70, 100],
+            # "high": [170, 230, 255],
+            # For charger
+            "low": [0, 0, 0],
+            "high": [180, 255, 45],
+            # For Green Ball
+            # "low": [0, 50, 40],
+            # "high": [255, 255, 255],
+        },
+        "head_angle": -1, # -12,
+        "obj_thresh": 0.24, # 0.07
+        "obj_dist": 0.11,
+    }
+
+
+    steps_record = open(f"VectorChargerDetector_steps_record.txt", 'w')
+    hits_record = open(f"VectorChargerDetector_random_stat.txt", 'w')
+
+    for seed in range(5):
+        for timeout in tqdm(timeouts):        
+            np.random.seed(seed)
+            random.seed(seed)
+
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
+        
+            cfg["episode_length_time"] = timeout
+            env = VectorColorDetector(cfg=cfg)
+            args.image_shape = env.image_space.shape
+            args.proprioception_shape = env.proprioception_space.shape
+            args.action_shape = env.action_space.shape
+            args.net_params = config
+            args.env_action_space = env.action_space            
+            performer = SACRADPerformer(args)
+
+            steps_record.write(f"timeout={timeout}, seed={seed}: ")
+            # Experiment
+            hits = 0
+            steps = 0
+            epi_steps = 0
+            image, propri = env.reset()
+            while steps < 20000:
+                action = performer.sample_action((image, propri))
+
+                # Receive reward and next state            
+                next_image, next_propri, reward, done, _ = env.step(action)
+                
+                print("Step: {}, Next Obs: {}, reward: {}, done: {}".format(steps, next_propri[3:5], reward, done))
+
+                image = next_image
+                propri = next_propri
+
+                # Log
+                steps += 1
+                epi_steps += 1
+
+                # Termination
+                if done or epi_steps == env._episode_length_step: 
+                    env.reset()                      
+                    epi_steps = 0
+
+                    if done:
+                        hits += 1
+                    else:
+                        steps += 20
+                        
+                    steps_record.write(str(steps)+', ')
+
+            steps_record.write('\n')
+            hits_record.write(f"timeout={timeout}, seed={seed}: {hits}\n")
+        
+    steps_record.close()
+    hits_record.close()
+
     
 if __name__ == '__main__':
-    main()
+    # main()
+    run_init_policy_test()
