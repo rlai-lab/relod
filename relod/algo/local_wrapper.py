@@ -174,6 +174,13 @@ class LocalWrapper(BaseWrapper):
         else:
             raise NotImplementedError('load_policy_to_file: {} mode is not supported'.format(self._mode))
     
+    def save_buffer(self, *args, **kwargs):
+        if self._mode == MODE.LOCAL_ONLY:
+            self._learner.save_buffer(*args, **kwargs)
+        elif self._mode in [MODE.REMOTE_ONLY, MODE.EVALUATION, MODE.REMOTE_LOCAL]:
+            raise NotImplementedError('save_buffer: {} mode is not supported'.format(self._mode))
+    
+
     def close(self, *args, **kwargs):
         if self._mode in [MODE.REMOTE_ONLY, MODE.REMOTE_LOCAL]:
             assert self.recv_cmd() == 'close'

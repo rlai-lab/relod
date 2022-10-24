@@ -76,7 +76,7 @@ class RadReplayBuffer(object):
 
 class AsyncRadReplayBuffer(RadReplayBuffer):
     def __init__(self, image_shape, proprioception_shape, action_shape, capacity, batch_size,
-                 sample_queue, minibatch_queue, init_steps, max_updates_per_step, savepath=None, loadpath=None):
+                 sample_queue, minibatch_queue, init_steps, max_updates_per_step, savepath='', loadpath=''):
         super(AsyncRadReplayBuffer, self).__init__(image_shape, proprioception_shape, action_shape, capacity, batch_size)
         self.init_steps = init_steps
         self.step = 0
@@ -88,7 +88,7 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
         self.savepath = savepath
         self.loadpath = loadpath
 
-        if loadpath is not None:
+        if loadpath:
             self.load()
 
         self.start_thread()
@@ -124,32 +124,33 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
                 self.send_count += 1
 
     def save(self):
-        tic = time.time()
-        print("Saving buffer thread spawned ...")
-        data = {
-            'images': self.images,
-            'next_images': self.next_images,
-            'propris': self.propris,
-            'next_propris': self.next_propris,
-            'actions': self.actions,
-            'rewards': self.rewards,
-            'dones': self.dones,
-            'step': self.step,
-            'count': self.count,
-            'idx': self.idx,
-        }
-        with self._buffer_lock:
+        if self.savepath:
+            tic = time.time()
+            print("Saving buffer thread spawned ...")
+            data = {
+                'images': self.images,
+                'next_images': self.next_images,
+                'propris': self.propris,
+                'next_propris': self.next_propris,
+                'actions': self.actions,
+                'rewards': self.rewards,
+                'dones': self.dones,
+                'step': self.step,
+                'count': self.count,
+                'idx': self.idx,
+            }
+            
             with open(self.savepath, "wb") as handle:
                 pickle.dump(data, handle, protocol=4)
-        print("Saved the buffer locally!")
-        print("Took: {}s".format(time.time()-tic))
+            print("Saved the buffer locally!")
+            print("Took: {}s".format(time.time()-tic))
 
 
     def load(self):
         tic = time.time()
         print("Loading buffer")
 
-        data = pickle.load(self.loadpath)
+        data = pickle.load(open(self.loadpath, "rb"))
         self.images = data['images']
         self.next_images = data['next_images']
         self.propris = data['propris']
@@ -158,7 +159,7 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
         self.rewards = data['rewards']
         self.dones = data['dones']
         self.step = data['step']
-        self.count = ['count']
+        self.count = data['count']
         self.idx = data['idx']
         
         print("Loaded the buffer from: {}".format(self.loadpath))

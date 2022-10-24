@@ -116,6 +116,8 @@ class SACRADLearner(BaseLearner):
                                         self._minibatch_queue,
                                         self._args.init_steps,
                                         self._args.max_updates_per_step,
+                                        self._args.save_path,
+                                        self._args.load_path,
                                         )
                                 )
             self._replay_buffer_process.start()
