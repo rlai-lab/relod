@@ -93,6 +93,8 @@ def parse_args():
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     parser.add_argument('--save_image', default=False, action='store_true')
+    parser.add_argument('--save_path', default='', type=str, help="For saving SAC buffer")
+    parser.add_argument('--load_path', default='', type=str, help="Path to SAC buffer file")
     args = parser.parse_args()
     return args
 
@@ -243,7 +245,7 @@ def main():
                     plt.savefig(args.return_dir+'/learning_curve.png')
                 
                 # Save buffer
-                agent.learner.save_buffer()
+                agent.save_buffer()
 
             if not epi_done and sub_steps >= episode_length_step: # set timeout here
                 sub_steps = 0
@@ -272,7 +274,7 @@ def main():
 
 
 def run_init_policy_test():
-    timeouts = [3, 6, 12, 30]
+    timeouts = [6, 12, 30]
 
     args = parse_args()
     cfg = {
