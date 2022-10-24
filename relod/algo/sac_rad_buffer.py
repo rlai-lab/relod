@@ -1,9 +1,7 @@
-from json import load
-from tkinter.messagebox import NO
-import numpy as np
 import threading
 import time
 import pickle
+import numpy as np
 
 
 class RadReplayBuffer(object):
@@ -73,6 +71,7 @@ class RadReplayBuffer(object):
         dones = self.dones[idxs]
 
         return images, propris, actions, rewards, next_images, next_propris, dones
+
 
 class AsyncRadReplayBuffer(RadReplayBuffer):
     def __init__(self, image_shape, proprioception_shape, action_shape, capacity, batch_size,
@@ -144,7 +143,6 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
                 pickle.dump(data, handle, protocol=4)
             print("Saved the buffer locally!")
             print("Took: {}s".format(time.time()-tic))
-
 
     def load(self):
         tic = time.time()
