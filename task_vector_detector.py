@@ -257,15 +257,16 @@ def main():
                     plt.plot(plot_x, plot_rets)
                     plt.pause(0.001)
                     plt.savefig(args.return_dir+'/learning_curve.png')
-                
-                # Save buffer
-                agent.save_buffer()
-
+               
             if not epi_done and sub_steps >= episode_length_step: # set timeout here
                 sub_steps = 0
                 sub_epi += 1
                 ret += args.reset_penalty_steps * args.reward
                 print(f'Sub episode {sub_epi} done.')
+                
+                # Save buffer when Vector is charging
+                if env.is_charging_necessary:                    
+                    agent.save_buffer()
 
                 (image, propri) = env.reset()
                 agent.send_init_ob((image, propri))
