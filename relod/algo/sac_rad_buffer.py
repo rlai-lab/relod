@@ -86,6 +86,7 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
         self._pause_update = False
         self.savepath = savepath
         self.loadpath = loadpath
+        self._lock = threading.Lock()
 
         if loadpath:
             self.load()
@@ -111,7 +112,8 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
                 else:
                     raise NotImplementedError()
             else:
-                self.add(*sample)
+                with self._lock:
+                    self.add(*sample)
                 self.step += 1
 
     def send_to_update(self):
@@ -126,21 +128,24 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
         if self.savepath:
             tic = time.time()
             print("Saving buffer thread spawned ...")
-            data = {
-                'images': self.images,
-                'next_images': self.next_images,
-                'propris': self.propris,
-                'next_propris': self.next_propris,
-                'actions': self.actions,
-                'rewards': self.rewards,
-                'dones': self.dones,
-                'step': self.step,
-                'count': self.count,
-                'idx': self.idx,
-            }
             
-            with open(self.savepath, "wb") as handle:
-                pickle.dump(data, handle, protocol=4)
+            with self._lock:
+                data = {
+                    'images': self.images,
+                    'next_images': self.next_images,
+                    'propris': self.propris,
+                    'next_propris': self.next_propris,
+                    'actions': self.actions,
+                    'rewards': self.rewards,
+                    'dones': self.dones,
+                    'step': self.step,
+                    'count': self.count,
+                    'idx': self.idx,
+                }
+                
+                with open(self.savepath, "wb") as handle:
+                    pickle.dump(data, handle, protocol=4)
+                    
             print("Saved the buffer locally!")
             print("Took: {}s".format(time.time()-tic))
 
