@@ -63,7 +63,7 @@ def parse_args():
     parser.add_argument('--init_steps', default=5000, type=int) 
     parser.add_argument('--env_steps', default=120000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
-    parser.add_argument('--async_mode', default=True, action='store_true')
+    parser.add_argument('--sync_mode', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.6, type=float)
     parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
@@ -86,10 +86,10 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
-    parser.add_argument('--run_type', default='init_policy_test', type=str)
+    parser.add_argument('--run_type', default='experiment', type=str)
     parser.add_argument('--description', default='test new remote script', type=str)
     parser.add_argument('--seed', default=3, type=int)
-    parser.add_argument('--work_dir', default='.', type=str)
+    parser.add_argument('--work_dir', default='results/', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=False, action='store_true')
@@ -104,7 +104,7 @@ def parse_args():
     args = parser.parse_args()
     assert args.mode in ['r', 'l', 'rl', 'e']
     assert args.reward < 0 and args.reset_penalty_steps >= 0
-
+    args.async_mode = not args.sync_mode
     return args
 
 def main():
@@ -124,7 +124,7 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/results/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.work_dir += f'/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
     os.makedirs(args.model_dir, exist_ok=False)
@@ -295,7 +295,7 @@ def main():
     print(f"Finished in {duration}s")
 
 def run_init_policy_test(agent, args):
-    timeouts = [int(30/args.dt)]
+    timeouts = [int(args.episode_length_time/args.dt)]
     args.init_steps = 100000000
     args.env_steps = 20000
     steps_record = open(f"{args.env}_steps_record.txt", 'w')
@@ -332,6 +332,10 @@ def run_init_policy_test(agent, args):
             mt.reset_plot()
             input('go?')
             image, prop = env.reset()
+            agent.performer.sample_action((image, prop))
+            agent.performer.sample_action((image, prop))
+            agent.performer.sample_action((image, prop))
+
             while steps < args.env_steps:
                 action = agent.sample_action((image, prop))
 
