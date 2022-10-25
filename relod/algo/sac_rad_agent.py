@@ -138,7 +138,7 @@ class SACRADLearner(BaseLearner):
         self._critic_target = performer._critic_target
 
         if self._args.load_model > -1:
-            self._performer.load_policy_from_file()
+            self._performer.load_policy_from_file(args.model_dir, args.load_model)
 
         self._log_alpha = torch.tensor(np.log(self._args.init_temperature)).to(self._args.device)
         self._log_alpha.requires_grad = True
@@ -281,7 +281,7 @@ class SACRADLearner(BaseLearner):
         )
 
     def _update(self, images, propris, actions, rewards, next_images, next_propris, dones):
-        # tic = time.time()
+        tic = time.time()
         # regular update of SAC_RAD, sequentially augment data and train
         if images is not None:
             images = torch.as_tensor(images, device=self._args.device).float()
@@ -302,7 +302,8 @@ class SACRADLearner(BaseLearner):
         stats['train/batch_reward'] = rewards.mean().item()
         stats['train/num_updates'] = self._num_updates
         self._num_updates += 1
-        # print("Took {}s to update the model".format(time.time()-tic))
+        if self._num_updates % 100 == 0:
+            print("Update {} took {}s to update the model".format(self._num_updates, time.time()-tic))
         
         return stats
         
