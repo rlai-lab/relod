@@ -59,8 +59,8 @@ def parse_args():
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
-    parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--env_steps', default=150000, type=int)
+    parser.add_argument('--init_steps', default=20000, type=int)
+    parser.add_argument('--env_steps', default=200000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
@@ -115,12 +115,15 @@ def main():
     else:
         raise NotImplementedError('Not a supported mode!')
 
-    run_id = "{}-VectorDetector-{}-{}".format(datetime.now().strftime("%Y%m%d-%H%M%S"), args.object, args.robot_serial)
-    args.work_dir += f'/results/{run_id}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    if args.work_dir == '.':
+        run_id = "{}-VectorDetector-{}-{}".format(datetime.now().strftime("%Y%m%d-%H%M%S"), args.object, args.robot_serial)
+        args.work_dir += f'/results/{run_id}/seed={args.seed}'
+
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
-    os.makedirs(args.model_dir, exist_ok=False)
-    os.makedirs(args.return_dir, exist_ok=False)
+    args.save_path = "./{}_sac_buffer.pkl".format(args.robot_serial)
+    os.makedirs(args.model_dir, exist_ok=True)
+    os.makedirs(args.return_dir, exist_ok=True)
     
     if args.save_image:
         args.image_dir = args.work_dir+'/images'
@@ -179,14 +182,18 @@ def main():
     agent.apply_remote_policy(block=True)
 
     if args.load_model > -1:
-        agent.load_policy_from_file(args.model_dir, args.load_model)
-            
+        agent.load_policy_from_file(args.model_dir, args.load_model)        
+        for i in range(1, 31):
+            print("Sleep for {}s to give time for buffer to load".format(30-i))  # Hack
+            time.sleep(1)
+                    
     if mode == MODE.EVALUATION and args.load_model > -1:
         args.init_steps = 0
 
     # Experiment block starts
     experiment_done = False
-    total_steps = 0
+    total_steps = 0 
+
     sub_epi = 0
     returns = []
     epi_lens = []
@@ -205,6 +212,13 @@ def main():
         agent.send_init_ob((image, propri))
         ret = 0
         epi_steps = 0
+        if args.load_model > 0:
+            data = np.loadtxt(os.path.join(args.return_dir, "return.txt"))
+            returns = list(data[1])
+            epi_lens = list(data[0])
+            total_steps = sum(epi_lens)
+
+
         sub_steps = 0
         epi_done = 0
         while not experiment_done and not epi_done:
@@ -274,7 +288,7 @@ def main():
 
 
 def run_init_policy_test():
-    timeouts = [6, 12, 30]
+    timeouts = [12, 30]
 
     args = parse_args()
     cfg = {
@@ -361,5 +375,5 @@ def run_init_policy_test():
 
     
 if __name__ == '__main__':
-    # main()
-    run_init_policy_test()
+    main()
+    # run_init_policy_test()
