@@ -4,6 +4,7 @@ import time
 import os
 import cv2
 import random
+import threading
 
 import numpy as np
 import relod.utils as utils
@@ -17,6 +18,7 @@ from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from senseact.utils import NormalizedEnv
 from rl_vector.vector.env_color_detector import VectorColorDetector, VectorBallDetector
 from rl_suite.plot.plot import smoothed_curve
+from rl_vector.egocentric_view import VectorPOV
 from tqdm import tqdm
 from sys import platform
 if platform == "darwin":    # For MacOS
@@ -162,8 +164,8 @@ def main():
     if args.object == "charger":
         cfg["hsv_mask"] = {"low": [0, 0, 0], "high": [180, 255, 45],}
         cfg["head_angle"] = -1
-        cfg["obj_thresh"] = 0.24
-        cfg["obj_dist"] = 0.11
+        cfg["obj_thresh"] = 0.22
+        cfg["obj_dist"] = 0.13
         env = VectorColorDetector(cfg=cfg)
     elif args.object == "ball":
         cfg["hsv_mask"] = {"low": [0, 50, 40], "high": [255, 255, 255],}
@@ -202,6 +204,12 @@ def main():
     if mode == MODE.EVALUATION and args.load_model > -1:
         args.init_steps = 0
 
+
+    # Plotter process
+    vp = VectorPOV(dt=env._dt, img_dim=(120, 160, 3), robot_serial=env.robot_serial)
+    p = threading.Thread(target=vp.plot, args=())
+    p.start()
+
     # Experiment block starts
     experiment_done = False
     total_steps = 0 
@@ -233,6 +241,13 @@ def main():
         sub_steps = 0
         epi_done = 0
         while not experiment_done and not epi_done:
+            # Visualizer process
+            cv_img = image[9:12, :, :]
+            cv_img = np.moveaxis(cv_img, 0, -1).astype(np.uint8)
+            # cv_img = np.moveaxis(cv_img, 0, 1).astype(np.uint8)
+            with vp._lock:
+                vp.img = cv_img    
+
             # select an action
             action = agent.sample_action((image, propri))
 
@@ -290,15 +305,19 @@ def main():
             print(f'Episode {len(epi_lens)} ended in {epi_steps} steps.')
             utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
 
-            # Save buffer when Vector is charging
+            # Save buffer when Vector is charging; Pause learning updates to prevent over-fitting
             if env.is_charging_necessary:                    
                 agent.save_buffer()
+                agent._learner.pause_update()
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)
 
     # Clean up
+    with vp.running.get_lock():
+        vp.running.value = 0
     agent.close()
+    p.join()    # Visualizer process 
     env.close()
     print(f"Finished in {duration}s")
 
