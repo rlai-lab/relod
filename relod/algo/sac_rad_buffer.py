@@ -143,19 +143,19 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
             
             # Sleep from time to time to release lock and get more data into the buffer
             with self._lock:
-                np.savetxt(os.path.join(self.savepath, "images.txt"), self.images)
+                np.save(os.path.join(self.savepath, "images.npy"), self.images)
             time.sleep(0.1)
             
             with self._lock:
-                np.savetxt(os.path.join(self.savepath, "next_images.txt"), self.next_images)
+                np.save(os.path.join(self.savepath, "next_images.npy"), self.next_images)
             time.sleep(0.1)
 
             with self._lock:
-                np.savetxt(os.path.join(self.savepath, "propris.txt"), self.propris)
-                np.savetxt(os.path.join(self.savepath, "next_propris.txt"), self.next_propris)
-                np.savetxt(os.path.join(self.savepath, "actions.txt"), self.actions)
-                np.savetxt(os.path.join(self.savepath, "rewards.txt"), self.rewards)
-                np.savetxt(os.path.join(self.savepath, "dones.txt"), self.dones)
+                np.save(os.path.join(self.savepath, "propris.npy"), self.propris)
+                np.save(os.path.join(self.savepath, "next_propris.npy"), self.next_propris)
+                np.save(os.path.join(self.savepath, "actions.npy"), self.actions)
+                np.save(os.path.join(self.savepath, "rewards.npy"), self.rewards)
+                np.save(os.path.join(self.savepath, "dones.npy"), self.dones)
 
             print("Saved the buffer locally!")
             print("Took: {}s".format(time.time()-tic))
@@ -169,13 +169,13 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
         self.count = data['count']
         self.idx = data['idx']
 
-        self.images = np.loadtxt(os.path.join(self.loadpath, "images.txt"))
-        self.next_images = np.loadtxt(os.path.join(self.loadpath, "next_images.txt"))
-        self.propris = np.loadtxt(os.path.join(self.loadpath, "propris.txt"))
-        self.next_propris = np.loadtxt(os.path.join(self.loadpath, "next_propris.txt"))
-        self.actions = np.loadtxt(os.path.join(self.loadpath, "actions.txt"))
-        self.rewards = np.loadtxt(os.path.join(self.loadpath, "rewards.txt"))
-        self.dones = np.loadtxt(os.path.join(self.loadpath, "dones.txt"))
+        self.images = np.load(os.path.join(self.loadpath, "images.npy"))
+        self.next_images = np.load(os.path.join(self.loadpath, "next_images.npy"))
+        self.propris = np.load(os.path.join(self.loadpath, "propris.npy"))
+        self.next_propris = np.load(os.path.join(self.loadpath, "next_propris.npy"))
+        self.actions = np.load(os.path.join(self.loadpath, "actions.npy"))
+        self.rewards = np.load(os.path.join(self.loadpath, "rewards.npy"))
+        self.dones = np.load(os.path.join(self.loadpath, "dones.npy"))
         
         print("Loaded the buffer from: {}".format(self.loadpath))
         print("Took: {}s".format(time.time()-tic))
