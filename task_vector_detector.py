@@ -124,11 +124,11 @@ def main():
     
     args.load_buffer_path = ''
     if args.save_buffer:
-        args.save_buffer_path = args.work_dir + "/{}_sac_buffer.pkl".format(args.robot_serial)
+        args.save_buffer_path = args.work_dir + "/{}_sac_buffer".format(args.robot_serial)
     
     args.load_buffer_path = ''
     if args.load_buffer:
-        args.load_buffer_path =  args.work_dir + "/{}_sac_buffer.pkl".format(args.robot_serial)
+        args.load_buffer_path =  args.work_dir + "/{}_sac_buffer".format(args.robot_serial)
 
     os.makedirs(args.model_dir, exist_ok=True)
     os.makedirs(args.return_dir, exist_ok=True)
