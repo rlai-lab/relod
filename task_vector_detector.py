@@ -286,6 +286,10 @@ def main():
             print(f'Episode {len(epi_lens)} ended in {epi_steps} steps.')
             utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
 
+            # Save buffer when Vector is charging
+            if env.is_charging_necessary:                    
+                agent.save_buffer()
+
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)
 
