@@ -1,12 +1,13 @@
 import torch
-import numpy as np
 import os
 import random
+
+import numpy as np
 import matplotlib.pyplot as plt
 
 def make_dir(dir_path):
     try:
-        os.mkdir(dir_path)
+        os.makedirs(dir_path, exist_ok=True)
     except OSError:
         pass
     return dir_path

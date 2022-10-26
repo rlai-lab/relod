@@ -44,12 +44,9 @@ class SACRADPerformer(BasePerformer):
         self.is_training = is_training
 
     def load_policy_from_file(self, model_dir, step):
-        self._actor.load_state_dict(
-            torch.load('%s/actor_%s.pt' % (model_dir, step))
-        )
-        self._critic.load_state_dict(
-            torch.load('%s/critic_%s.pt' % (model_dir, step))
-        )
+        print(f"Loading policy from {model_dir}/{step}")
+        self._actor.load_state_dict(torch.load('%s/actor_%s.pt' % (model_dir, step)))
+        self._critic.load_state_dict(torch.load('%s/critic_%s.pt' % (model_dir, step)))
 
     def load_policy(self, policy):
         actor_weights = policy['actor']
@@ -104,6 +101,12 @@ class SACRADLearner(BaseLearner):
             self._sample_queue = ctx.Queue(episode_length_step+100)
             self._minibatch_queue = ctx.Queue(100)
 
+            if not hasattr(self._args, "save_buffer_path"):
+                self._args.save_buffer_path = ''
+
+            if not hasattr(self._args, "load_buffer_path"):
+                self._args.load_buffer_path = ''
+
             # initialize data augmentation process
             self._replay_buffer_process = ctx.Process(target=AsyncRadReplayBuffer,
                                     args=(
@@ -116,6 +119,8 @@ class SACRADLearner(BaseLearner):
                                         self._minibatch_queue,
                                         self._args.init_steps,
                                         self._args.max_updates_per_step,
+                                        self._args.save_buffer_path,
+                                        self._args.load_buffer_path,
                                         )
                                 )
             self._replay_buffer_process.start()
@@ -136,7 +141,7 @@ class SACRADLearner(BaseLearner):
         self._critic_target = performer._critic_target
 
         if self._args.load_model > -1:
-            self._performer.load_policy_from_file()
+            self._performer.load_policy_from_file(args.model_dir, args.load_model)
 
         self._log_alpha = torch.tensor(np.log(self._args.init_temperature)).to(self._args.device)
         self._log_alpha.requires_grad = True
@@ -279,7 +284,7 @@ class SACRADLearner(BaseLearner):
         )
 
     def _update(self, images, propris, actions, rewards, next_images, next_propris, dones):
-        # tic = time.time()
+        tic = time.time()
         # regular update of SAC_RAD, sequentially augment data and train
         if images is not None:
             images = torch.as_tensor(images, device=self._args.device).float()
@@ -300,7 +305,8 @@ class SACRADLearner(BaseLearner):
         stats['train/batch_reward'] = rewards.mean().item()
         stats['train/num_updates'] = self._num_updates
         self._num_updates += 1
-        # print("Took {}s to update the model".format(time.time()-tic))
+        if self._num_updates % 100 == 0:
+            print("Update {} took {:.4f}s to update the model".format(self._num_updates, time.time()-tic))
         
         return stats
         
@@ -324,20 +330,26 @@ class SACRADLearner(BaseLearner):
         if self._args.async_mode:
             self._sample_queue.put('pause')
     
+    def save_buffer(self):
+        if self._args.async_mode:
+            self._sample_queue.put('save')
+    
     def resume_update(self):
         if self._args.async_mode:
             self._sample_queue.put('resume')
 
     def save_policy_to_file(self, model_dir, step):
-        torch.save(
-            self._actor.state_dict(), '%s/actor_%s.pt' % (model_dir, step)
-        )
-        torch.save(
-            self._critic.state_dict(), '%s/critic_%s.pt' % (model_dir, step)
-        )
+        torch.save(self._actor.state_dict(), '%s/actor_%s.pt' % (model_dir, step))
+        torch.save(self._critic.state_dict(), '%s/critic_%s.pt' % (model_dir, step))
+        torch.save(self._actor_optimizer.state_dict(), '%s/_actor_optimizer_%s.pt' % (model_dir, step))
+        torch.save(self._critic_optimizer.state_dict(), '%s/_critic_optimizer_%s.pt' % (model_dir, step))
+        torch.save(self._log_alpha_optimizer.state_dict(), '%s/_log_alpha_optimizer_%s.pt' % (model_dir, step))
 
     def load_policy_from_file(self, model_dir, step):
         self._performer.load_policy_from_file(model_dir, step)
+        self._actor_optimizer.load_state_dict(torch.load('%s/_actor_optimizer_%s.pt' % (model_dir, step)))
+        self._critic_optimizer.load_state_dict(torch.load('%s/_critic_optimizer_%s.pt' % (model_dir, step)))
+        self._log_alpha_optimizer.load_state_dict(torch.load('%s/_log_alpha_optimizer_%s.pt' % (model_dir, step)))
 
     def close(self):
         if self._args.async_mode:
