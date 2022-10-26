@@ -101,6 +101,12 @@ class SACRADLearner(BaseLearner):
             self._sample_queue = ctx.Queue(episode_length_step+100)
             self._minibatch_queue = ctx.Queue(100)
 
+            if not hasattr(self._args, "save_buffer_path"):
+                self._args.save_buffer_path = ''
+
+            if not hasattr(self._args, "load_buffer_path"):
+                self._args.load_buffer_path = ''
+
             # initialize data augmentation process
             self._replay_buffer_process = ctx.Process(target=AsyncRadReplayBuffer,
                                     args=(
