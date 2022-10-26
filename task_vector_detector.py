@@ -125,7 +125,8 @@ def main():
     args.load_buffer_path = ''
     if args.save_buffer:
         args.save_buffer_path = args.work_dir + "/{}_sac_buffer".format(args.robot_serial)
-    
+        utils.make_dir(args.save_buffer_path)
+
     args.load_buffer_path = ''
     if args.load_buffer:
         args.load_buffer_path =  args.work_dir + "/{}_sac_buffer".format(args.robot_serial)
@@ -190,7 +191,10 @@ def main():
     agent.apply_remote_policy(block=True)
 
     if args.load_model > -1:
-        agent.load_policy_from_file(args.model_dir, args.load_model)        
+        print("Loading model")
+        agent.load_policy_from_file(args.model_dir, args.load_model)
+
+    if args.load_buffer:     
         for i in range(1, 31):
             print("Sleep for {}s to give time for buffer to load".format(30-i))  # Hack
             time.sleep(1)
@@ -224,7 +228,7 @@ def main():
             data = np.loadtxt(os.path.join(args.return_dir, "return.txt"))
             returns = list(data[1])
             epi_lens = list(data[0])
-            total_steps = sum(epi_lens)
+            total_steps = int(sum(epi_lens))
 
         sub_steps = 0
         epi_done = 0
