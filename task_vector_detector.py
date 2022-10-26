@@ -276,8 +276,9 @@ def main():
             if args.save_model and total_steps % args.save_model_freq == 0:
                 agent.save_policy_to_file(args.model_dir, total_steps)
                 # Plot
-                plot_rets, plot_x = smoothed_curve(
-                        np.array(returns), np.array(epi_lens), x_tick=args.save_model_freq, window_len=args.save_model_freq)
+                if returns:
+                    plot_rets, plot_x = smoothed_curve(
+                            np.array(returns), np.array(epi_lens), x_tick=args.save_model_freq, window_len=args.save_model_freq)
                 if len(plot_rets):
                     plt.clf()
                     plt.plot(plot_x, plot_rets)
