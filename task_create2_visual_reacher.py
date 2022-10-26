@@ -210,6 +210,7 @@ def main():
                 sub_steps = 0
                 sub_epi += 1
                 ret += args.reset_penalty_steps * args.reward
+                total_steps += args.reset_penalty_steps
                 print(f'Sub episode {sub_epi} done.')
 
                 (image, propri) = env.reset()
