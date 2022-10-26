@@ -300,7 +300,7 @@ class SACRADLearner(BaseLearner):
         stats['train/num_updates'] = self._num_updates
         self._num_updates += 1
         if self._num_updates % 100 == 0:
-            print("Update {} took {}s to update the model".format(self._num_updates, time.time()-tic))
+            print("Update {} took {:.4f}s to update the model".format(self._num_updates, time.time()-tic))
         
         return stats
         
