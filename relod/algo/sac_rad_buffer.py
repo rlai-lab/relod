@@ -1,6 +1,8 @@
+from email.mime import image
 import threading
 import time
 import pickle
+import os
 import numpy as np
 
 
@@ -128,24 +130,33 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
         if self.savepath:
             tic = time.time()
             print("Saving buffer thread spawned ...")
-            
+
             with self._lock:
                 data = {
-                    'images': self.images,
-                    'next_images': self.next_images,
-                    'propris': self.propris,
-                    'next_propris': self.next_propris,
-                    'actions': self.actions,
-                    'rewards': self.rewards,
-                    'dones': self.dones,
                     'step': self.step,
                     'count': self.count,
                     'idx': self.idx,
                 }
                 
-                with open(self.savepath, "wb") as handle:
+                with open(os.path.join(self.savepath, "buffer_data.pkl"), "wb") as handle:
                     pickle.dump(data, handle, protocol=4)
-                    
+            
+            # Sleep from time to time to release lock and get more data into the buffer
+            with self._lock:
+                np.savetxt(os.path.join(self.savepath, "images.txt"), self.images)
+            time.sleep(0.1)
+            
+            with self._lock:
+                np.savetxt(os.path.join(self.savepath, "next_images.txt"), self.next_images)
+            time.sleep(0.1)
+
+            with self._lock:
+                np.savetxt(os.path.join(self.savepath, "propris.txt"), self.propris)
+                np.savetxt(os.path.join(self.savepath, "next_propris.txt"), self.next_propris)
+                np.savetxt(os.path.join(self.savepath, "actions.txt"), self.actions)
+                np.savetxt(os.path.join(self.savepath, "rewards.txt"), self.rewards)
+                np.savetxt(os.path.join(self.savepath, "dones.txt"), self.dones)
+
             print("Saved the buffer locally!")
             print("Took: {}s".format(time.time()-tic))
 
@@ -153,17 +164,18 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
         tic = time.time()
         print("Loading buffer")
 
-        data = pickle.load(open(self.loadpath, "rb"))
-        self.images = data['images']
-        self.next_images = data['next_images']
-        self.propris = data['propris']
-        self.next_propris = data['next_propris']
-        self.actions = data['actions']
-        self.rewards = data['rewards']
-        self.dones = data['dones']
+        data = pickle.load(open(os.path.join(self.loadpath, "buffer_data.pkl"), "rb"))
         self.step = data['step']
         self.count = data['count']
         self.idx = data['idx']
+
+        self.images = np.loadtxt(os.path.join(self.loadpath, "images.txt"))
+        self.next_images = np.loadtxt(os.path.join(self.loadpath, "next_images.txt"))
+        self.propris = np.loadtxt(os.path.join(self.loadpath, "propris.txt"))
+        self.next_propris = np.loadtxt(os.path.join(self.loadpath, "next_propris.txt"))
+        self.actions = np.loadtxt(os.path.join(self.loadpath, "actions.txt"))
+        self.rewards = np.loadtxt(os.path.join(self.loadpath, "rewards.txt"))
+        self.dones = np.loadtxt(os.path.join(self.loadpath, "dones.txt"))
         
         print("Loaded the buffer from: {}".format(self.loadpath))
         print("Took: {}s".format(time.time()-tic))

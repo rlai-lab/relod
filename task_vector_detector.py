@@ -93,8 +93,8 @@ def parse_args():
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     parser.add_argument('--save_image', default=False, action='store_true')
-    parser.add_argument('--save_path', default='', type=str, help="For saving SAC buffer")
-    parser.add_argument('--load_path', default='', type=str, help="Path to SAC buffer file")
+    parser.add_argument('--save_buffer', default=True, action='store_true')
+    parser.add_argument('--load_buffer', default=False, action='store_true')
     args = parser.parse_args()
     return args
 
@@ -119,9 +119,17 @@ def main():
         run_id = "{}-VectorDetector-{}-{}".format(datetime.now().strftime("%Y%m%d-%H%M%S"), args.object, args.robot_serial)
         args.work_dir += f'/results/{run_id}/seed={args.seed}'
 
-    args.model_dir = args.work_dir+'/models'
-    args.return_dir = args.work_dir+'/returns'
-    args.save_path = "./{}_sac_buffer.pkl".format(args.robot_serial)
+    args.model_dir = args.work_dir + '/models'
+    args.return_dir = args.work_dir + '/returns'
+    
+    args.load_buffer_path = ''
+    if args.save_buffer:
+        args.save_buffer_path = args.work_dir + "/{}_sac_buffer.pkl".format(args.robot_serial)
+    
+    args.load_buffer_path = ''
+    if args.load_buffer:
+        args.load_buffer_path =  args.work_dir + "/{}_sac_buffer.pkl".format(args.robot_serial)
+
     os.makedirs(args.model_dir, exist_ok=True)
     os.makedirs(args.return_dir, exist_ok=True)
     
@@ -218,7 +226,6 @@ def main():
             epi_lens = list(data[0])
             total_steps = sum(epi_lens)
 
-
         sub_steps = 0
         epi_done = 0
         while not experiment_done and not epi_done:
@@ -276,6 +283,7 @@ def main():
         if epi_done: # episode done, save result
             returns.append(ret)
             epi_lens.append(epi_steps)
+            print(f'Episode {len(epi_lens)} ended in {epi_steps} steps.')
             utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
 
     duration = time.time() - start_time
