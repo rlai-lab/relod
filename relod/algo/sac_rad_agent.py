@@ -44,6 +44,7 @@ class SACRADPerformer(BasePerformer):
         self.is_training = is_training
 
     def load_policy_from_file(self, model_dir, step):
+        print(f"Loading policy from {model_dir}/{step}")
         self._actor.load_state_dict(torch.load('%s/actor_%s.pt' % (model_dir, step)))
         self._critic.load_state_dict(torch.load('%s/critic_%s.pt' % (model_dir, step)))
 
