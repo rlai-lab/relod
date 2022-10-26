@@ -158,7 +158,7 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
                 np.save(os.path.join(self.savepath, "dones.npy"), self.dones)
 
             print("Saved the buffer locally!")
-            print("Took: {}s".format(time.time()-tic))
+            print("Took: {:.3f}s".format(time.time()-tic))
 
     def load(self):
         tic = time.time()
@@ -178,4 +178,4 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
         self.dones = np.load(os.path.join(self.loadpath, "dones.npy"))
         
         print("Loaded the buffer from: {}".format(self.loadpath))
-        print("Took: {}s".format(time.time()-tic))
+        print("Took: {:.3f}s".format(time.time()-tic))
