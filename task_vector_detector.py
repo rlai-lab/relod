@@ -20,6 +20,7 @@ from rl_vector.vector.env_color_detector import VectorColorDetector, VectorBallD
 from rl_suite.plot.plot import smoothed_curve
 from rl_vector.egocentric_view import VectorPOV
 from tqdm import tqdm
+from anki_vector.util import degrees
 from sys import platform
 if platform == "darwin":    # For MacOS
     import matplotlib as mpl
@@ -56,7 +57,7 @@ def parse_args():
     parser.add_argument('--image_height', default=120, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--reset_penalty_steps', default=67, type=int)
-    parser.add_argument('--reward', default=-1, type=float)
+    parser.add_argument('--reward', default=-0.1, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -165,7 +166,7 @@ def main():
         cfg["hsv_mask"] = {"low": [0, 0, 0], "high": [180, 255, 45],}
         cfg["head_angle"] = -1
         cfg["obj_thresh"] = 0.22
-        cfg["obj_dist"] = 0.13
+        cfg["obj_dist"] = 0.2
         env = VectorColorDetector(cfg=cfg)
     elif args.object == "ball":
         cfg["hsv_mask"] = {"low": [0, 50, 40], "high": [255, 255, 255],}
@@ -173,7 +174,8 @@ def main():
         cfg["obj_thresh"] = 0.07
         cfg["obj_dist"] = 0.05
         env = VectorBallDetector(cfg=cfg)
-    
+    args.robot_cfg = cfg
+
     # env = NormalizedEnv(env)
     utils.set_seed_everywhere(args.seed, env)
 
@@ -196,9 +198,11 @@ def main():
         print("Loading model")
         agent.load_policy_from_file(args.model_dir, args.load_model)
 
-    if args.load_buffer:     
-        for i in range(1, 31):
-            print("Sleep for {}s to give time for buffer to load".format(30-i))  # Hack
+    if args.load_buffer:
+        # Simple hack to streamline runs
+        sleep_time = 20
+        for i in range(1, sleep_time+1):
+            print("Sleep for {}s to give time for buffer to load".format(sleep_time - i))
             time.sleep(1)
                     
     if mode == MODE.EVALUATION and args.load_model > -1:
@@ -218,9 +222,16 @@ def main():
     returns = []
     epi_lens = []
     start_time = time.time()
+    learning_paused = False
     print(f'Experiment starts at: {start_time}')
     while not experiment_done:
         image, propri = env.reset()
+        
+        # Resume learning if it was paused while charging
+        if learning_paused:
+            agent._learner.resume_update()
+            learning_paused = False
+            
         tic = time.time()
 
         # First inference took a while (~1 min), do it before the agent-env interaction loop
@@ -253,6 +264,22 @@ def main():
 
             # step in the environment
             next_image, next_propri, reward, epi_done, _ = env.step(action)
+
+            # Vector flipped over
+            if env.vector_comm.is_cliff_detected() or env.vector_comm.is_picked_up():
+                # Stop the wheels
+                env.vector_comm.set_wheel_motors([0, 0])
+                time.sleep(0.5)
+                env.vector_comm.flip_back()
+                # Set head angle
+                env.vector_comm.robot.behavior.set_head_angle(degrees(args.robot_cfg["head_angle"]))
+                time.sleep(0.5)
+                # Set lift height
+                env.vector_comm.set_lift_height(1.0)
+                time.sleep(0.5)
+                reward += -100 * args.dt
+                total_steps += 100
+                epi_steps += 100
 
             # store
             agent.push_sample((image, propri), action, reward, (next_image, next_propri), epi_done)
@@ -291,9 +318,11 @@ def main():
                 ret += args.reset_penalty_steps * args.reward
                 print(f'Sub episode {sub_epi} done.')
                 
-                # Save buffer when Vector is charging
+                # Save buffer when Vector is charging; Pause learning updates to prevent over-fitting
                 if env.is_charging_necessary:                    
                     agent.save_buffer()
+                    #agent._learner.pause_update()
+                    learning_paused = True
 
                 (image, propri) = env.reset()
                 agent.send_init_ob((image, propri))
@@ -309,7 +338,8 @@ def main():
             # Save buffer when Vector is charging; Pause learning updates to prevent over-fitting
             if env.is_charging_necessary:                    
                 agent.save_buffer()
-                agent._learner.pause_update()
+                #agent._learner.pause_update()
+                learning_paused = True
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)
