@@ -166,7 +166,7 @@ def main():
         cfg["hsv_mask"] = {"low": [0, 0, 0], "high": [180, 255, 45],}
         cfg["head_angle"] = -1
         cfg["obj_thresh"] = 0.22
-        cfg["obj_dist"] = 0.2
+        cfg["obj_dist"] = 0.13
         env = VectorColorDetector(cfg=cfg)
     elif args.object == "ball":
         cfg["hsv_mask"] = {"low": [0, 50, 40], "high": [255, 255, 255],}
