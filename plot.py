@@ -50,6 +50,7 @@ if __name__ == "__main__":
             plt.ylim(-1000, 0)
             
             sns.lineplot(x="step", y='avg_ret', data=df, hue='timeout', palette='bright')
+            
             title = f'Visual Franka Min Task learning curves, precision 0.12'
             plt.title(title)
             plt.savefig(title+'.png')

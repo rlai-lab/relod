@@ -136,7 +136,7 @@ class SACRADLearner(BaseLearner):
         self._critic_target = performer._critic_target
 
         if self._args.load_model > -1:
-            self._performer.load_policy_from_file()
+            self._performer.load_policy_from_file(self._args.model_dir, self._args.load_model)
 
         self._log_alpha = torch.tensor(np.log(self._args.init_temperature)).to(self._args.device)
         self._log_alpha.requires_grad = True

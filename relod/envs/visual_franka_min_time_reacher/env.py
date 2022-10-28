@@ -82,11 +82,16 @@ class FrankaPanda_Visual_Min_Reacher(FrankaPanda_Visual_Reacher_V0):
 
 
         # pass time step duration
+
         done = False
-        if self.ep_time >= (self.max_episode_duration-1e-3):
-            done = True
-            self.apply_joint_vel(np.zeros((7,)))
-            info['TimeLimit.truncated'] = True
+
+        # Currently Episode end is handled in the task. 
+        # TODO: Handle episode end
+        # if self.ep_time >= (self.max_episode_duration-1e-3):
+        #     done = True
+        #     self.apply_joint_vel(np.zeros((7,)))
+        #     info['TimeLimit.truncated'] = True
+        
         delay = (self.ep_time + self.reset_time) - time.time()
         if delay > 0:
             time.sleep(np.float64(delay))
@@ -134,6 +139,8 @@ class FrankaPanda_Visual_Min_Reacher(FrankaPanda_Visual_Reacher_V0):
 
         if done:
             self._reset = False
+            self.apply_joint_vel(np.zeros((7,)))
+            self.apply_joint_vel(np.zeros((7,)))
             # self.reset()
 
         reward = -1
@@ -202,7 +209,7 @@ class FrankaPanda_Visual_Min_Reacher(FrankaPanda_Visual_Reacher_V0):
 #     hits_record.close()
 
 
-# if __name__ == '__main__':
-#     ranndom_policy_hits_vs_timeout()
+
+
 
 
