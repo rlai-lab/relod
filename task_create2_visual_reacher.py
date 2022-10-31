@@ -11,7 +11,7 @@ from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 
 from senseact.utils import NormalizedEnv
 from relod.envs.create2_visual_reacher.env import Create2VisualReacherEnv
-
+from tqdm import tqdm
 import numpy as np
 import cv2
 
@@ -53,7 +53,7 @@ def parse_args():
     parser.add_argument('--init_steps', default=1000, type=int)
     parser.add_argument('--env_steps', default=150000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
-    parser.add_argument('--async_mode', default=True, action='store_true')
+    parser.add_argument('--sync_mode', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
     parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
@@ -74,28 +74,32 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.101', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='rl', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
+    parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
+    parser.add_argument('--run_type', default='experiment', type=str)
     parser.add_argument('--description', default='', type=str)
-    parser.add_argument('--seed', default=3, type=int)
-    parser.add_argument('--work_dir', default='.', type=str)
+    parser.add_argument('--seed', default=2, type=int)
+    parser.add_argument('--work_dir', default='results/', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=True, action='store_true')
     parser.add_argument('--xtick', default=1500, type=int)
-    parser.add_argument('--save_image', default=True, action='store_true')
+    parser.add_argument('--save_image', default=False, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     args = parser.parse_args()
+    args.async_mode = not args.sync_mode
     return args
 
 def main():
     args = parse_args()
-    assert args.mode != 'l', "Jetson nano doesn't support local-only"
+    
     if args.mode == 'r':
         mode = MODE.REMOTE_ONLY
+    elif args.mode == 'l':
+        mode = MODE.LOCAL_ONLY
     elif args.mode == 'rl':
         mode = MODE.REMOTE_LOCAL
     elif args.mode == 'e':
@@ -106,7 +110,7 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/results/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.work_dir += f'/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
     os.makedirs(args.model_dir, exist_ok=False)
@@ -149,9 +153,12 @@ def main():
 
     if args.load_model > -1:
         agent.load_policy_from_file(args.model_dir, args.load_model)
-            
-    if mode == MODE.EVALUATION and args.load_model > -1:
-        args.init_steps = 0
+
+    # branch here
+    if args.run_type == 'init_policy_test':
+        env.close()
+        run_init_policy_test(agent, args)
+        return
 
     # Experiment block starts
     experiment_done = False
@@ -203,6 +210,7 @@ def main():
                 sub_steps = 0
                 sub_epi += 1
                 ret += args.reset_penalty_steps * args.reward
+                total_steps += args.reset_penalty_steps
                 print(f'Sub episode {sub_epi} done.')
 
                 (image, propri) = env.reset()
@@ -222,6 +230,80 @@ def main():
     agent.close()
     env.close()
     print(f"Finished in {duration}s")
+
+def run_init_policy_test(agent, args):
+    timeouts = [int(args.episode_length_time/args.dt)]
+    args.init_steps = 100000000
+    args.env_steps = 20000
+    steps_record = open(f"{args.env}_steps_record.txt", 'w')
+    hits_record = open(f"{args.env}_random_stat.txt", 'w')
+
+    if not 'conv' in config:
+        image_shape = (0, 0, 0)
+    else: 
+        image_shape = (3*args.stack_frames, args.image_height, args.image_width)
+
+    for timeout in timeouts:
+        for seed in tqdm(range(5)):
+            args.seed = seed
+            env = Create2VisualReacherEnv(
+                episode_length_time=args.episode_length_time, 
+                dt=args.dt,
+                image_shape=image_shape,
+                camera_id=args.camera_id,
+                min_target_size=args.min_target_size
+            )
+            env = NormalizedEnv(env)
+            utils.set_seed_everywhere(args.seed, None)
+            env.start()
+
+            steps_record.write(f"timeout={timeout}, seed={seed}: ")
+            steps_record.flush()
+            # Experiment
+            hits = 0
+            steps = 0
+            epi_steps = 0
+            (image, propri) = env.reset()
+            agent.performer.sample_action((image, propri))
+            agent.performer.sample_action((image, propri))
+            agent.performer.sample_action((image, propri))
+
+            while steps < args.env_steps:
+                action = agent.sample_action((image, propri))
+
+                # Receive reward and next state            
+                _, _, epi_done, _ = env.step(action)
+                
+                # print("Step: {}, Next Obs: {}, reward: {}, done: {}".format(steps, next_obs, reward, done))
+
+                # Log
+                steps += 1
+                epi_steps += 1
+
+                # Termination
+                if epi_done or epi_steps == timeout:
+                    env.reset()
+                        
+                    epi_steps = 0
+
+                    if epi_done:
+                        hits += 1
+                    else:
+                        steps += 65
+                        
+                    steps_record.write(str(steps)+', ')
+                    steps_record.flush()
+
+            steps_record.write('\n')
+            steps_record.flush()
+            hits_record.write(f"timeout={timeout}, seed={seed}: {hits}\n")
+            hits_record.flush()
+            env.close()
+            time.sleep(120)
+
+    steps_record.close()
+    hits_record.close()
+    agent.close()
 
 if __name__ == '__main__':
     main()
