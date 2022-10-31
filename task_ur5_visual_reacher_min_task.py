@@ -13,6 +13,7 @@ from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from relod.envs.visual_ur5_reacher.configs.ur5_config import config
 from relod.envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv, MonitorTarget
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 config = {
     
@@ -49,7 +50,7 @@ def parse_args():
     parser.add_argument('--image_history', default=3, type=int)
     parser.add_argument('--joint_history', default=1, type=int)
     parser.add_argument('--ignore_joint', default=False, action='store_true')
-    parser.add_argument('--episode_length_time', default=30.0, type=float)
+    parser.add_argument('--episode_length_time', default=6.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
     parser.add_argument('--size_tol', default=0.015, type=float)
     parser.add_argument('--center_tol', default=0.1, type=float)
@@ -60,8 +61,8 @@ def parse_args():
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
-    parser.add_argument('--init_steps', default=5000, type=int) 
-    parser.add_argument('--env_steps', default=120000, type=int)
+    parser.add_argument('--init_steps', default=2000, type=int) 
+    parser.add_argument('--env_steps', default=100000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--sync_mode', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.6, type=float)
@@ -87,15 +88,15 @@ def parse_args():
     parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
     parser.add_argument('--run_type', default='experiment', type=str)
-    parser.add_argument('--description', default='test new remote script', type=str)
-    parser.add_argument('--seed', default=3, type=int)
+    parser.add_argument('--description', default='', type=str)
+    parser.add_argument('--seed', default=4, type=int)
     parser.add_argument('--work_dir', default='results/', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=False, action='store_true')
     parser.add_argument('--xtick', default=1200, type=int)
     parser.add_argument('--display_image', default=True, action='store_true')
-    parser.add_argument('--save_image', default=True, action='store_true')
+    parser.add_argument('--save_image', default=False, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
@@ -124,11 +125,12 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.work_dir += f'/{args.env}/timeout={args.episode_length_time:.0f}/seed={args.seed}'
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
-    os.makedirs(args.model_dir, exist_ok=False)
-    os.makedirs(args.return_dir, exist_ok=False)
+    if mode != MODE.EVALUATION:
+        os.makedirs(args.model_dir, exist_ok=False)
+        os.makedirs(args.return_dir, exist_ok=False)
     if mode == MODE.LOCAL_ONLY:
         L = Logger(args.return_dir, use_tb=args.save_tb)
 
@@ -329,6 +331,7 @@ def run_init_policy_test(agent, args):
             hits = 0
             steps = 0
             epi_steps = 0
+            plt.close()
             mt = MonitorTarget()
             mt.reset_plot()
             input('go?')
