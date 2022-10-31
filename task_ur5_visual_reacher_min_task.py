@@ -12,6 +12,7 @@ from relod.algo.local_wrapper import LocalWrapper
 from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 from relod.envs.visual_ur5_reacher.configs.ur5_config import config
 from relod.envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv, MonitorTarget
+from tqdm import tqdm
 
 config = {
     
@@ -62,7 +63,7 @@ def parse_args():
     parser.add_argument('--init_steps', default=5000, type=int) 
     parser.add_argument('--env_steps', default=120000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
-    parser.add_argument('--async_mode', default=True, action='store_true')
+    parser.add_argument('--sync_mode', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.6, type=float)
     parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
@@ -85,9 +86,10 @@ def parse_args():
     parser.add_argument('--port', default=9876, type=int)
     parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
+    parser.add_argument('--run_type', default='experiment', type=str)
     parser.add_argument('--description', default='test new remote script', type=str)
     parser.add_argument('--seed', default=3, type=int)
-    parser.add_argument('--work_dir', default='.', type=str)
+    parser.add_argument('--work_dir', default='results/', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=False, action='store_true')
@@ -102,7 +104,7 @@ def parse_args():
     args = parser.parse_args()
     assert args.mode in ['r', 'l', 'rl', 'e']
     assert args.reward < 0 and args.reset_penalty_steps >= 0
-
+    args.async_mode = not args.sync_mode
     return args
 
 def main():
@@ -122,7 +124,7 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/results/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.work_dir += f'/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
     os.makedirs(args.model_dir, exist_ok=False)
@@ -185,6 +187,13 @@ def main():
         agent.performer.sample_action((image, prop))
         agent.performer.sample_action((image, prop))
 
+    # branch here
+    if args.run_type == 'init_policy_test':
+        del mt
+        env.close()
+        run_init_policy_test(agent, args)
+        return
+
     # Experiment block starts
     experiment_done = False
     total_steps = 0
@@ -246,6 +255,7 @@ def main():
                 sub_steps = 0
                 sub_epi += 1
                 ret += args.reset_penalty_steps * args.reward
+                total_steps += args.reset_penalty_steps
                 print(f'Sub episode {sub_epi} done.')
 
                 image, prop = env.reset()
@@ -284,6 +294,86 @@ def main():
     if mode == MODE.LOCAL_ONLY:
         utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
     print(f"Finished in {duration}s")
+
+def run_init_policy_test(agent, args):
+    timeouts = [int(args.episode_length_time/args.dt)]
+    args.init_steps = 100000000
+    args.env_steps = 20000
+    steps_record = open(f"{args.env}_steps_record.txt", 'w')
+    hits_record = open(f"{args.env}_random_stat.txt", 'w')
+
+    for timeout in timeouts:
+        for seed in tqdm(range(5)):
+            args.seed = seed
+            env = VisualReacherMinTimeEnv(
+                setup = args.setup,
+                ip = args.ur5_ip,
+                seed = args.seed,
+                camera_id = args.camera_id,
+                image_width = args.image_width,
+                image_height = args.image_height,
+                target_type = args.target_type,
+                image_history = args.image_history,
+                joint_history = args.joint_history,
+                episode_length = args.episode_length_time,
+                dt = args.dt,
+                size_tol = args.size_tol,
+                center_tol = args.center_tol,
+                reward_tol = args.reward_tol,
+            )
+
+            utils.set_seed_everywhere(args.seed, None)
+
+            steps_record.write(f"timeout={timeout}, seed={seed}: ")
+            # Experiment
+            hits = 0
+            steps = 0
+            epi_steps = 0
+            mt = MonitorTarget()
+            mt.reset_plot()
+            input('go?')
+            image, prop = env.reset()
+            agent.performer.sample_action((image, prop))
+            agent.performer.sample_action((image, prop))
+            agent.performer.sample_action((image, prop))
+
+            while steps < args.env_steps:
+                action = agent.sample_action((image, prop))
+
+                # Receive reward and next state            
+                _, _, _, epi_done, _ = env.step(action)
+                
+                # print("Step: {}, Next Obs: {}, reward: {}, done: {}".format(steps, next_obs, reward, done))
+
+                # Log
+                steps += 1
+                epi_steps += 1
+
+                # Termination
+                if epi_done or epi_steps == timeout:
+                    if epi_done:
+                        mt.reset_plot()
+
+                    env.reset()
+                        
+                    epi_steps = 0
+
+                    if epi_done:
+                        hits += 1
+                    else:
+                        steps += 70
+                        
+                    steps_record.write(str(steps)+', ')
+
+            steps_record.write('\n')
+            hits_record.write(f"timeout={timeout}, seed={seed}: {hits}\n")
+
+            env.reset()
+            env.close()
+
+    steps_record.close()
+    hits_record.close()
+    agent.close()
 
 if __name__ == '__main__':
     main()
