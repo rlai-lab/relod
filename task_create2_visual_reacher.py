@@ -86,7 +86,7 @@ def parse_args():
     parser.add_argument('--xtick', default=1500, type=int)
     parser.add_argument('--save_image', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=-1, type=int)
+    parser.add_argument('--load_model', default=140000, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     args = parser.parse_args()
@@ -193,14 +193,10 @@ def main():
 
         epi_start_time = time.time()
         while not experiment_done and not epi_done:
-            if args.display_image or ((mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image):
+            if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
                 image_to_show = np.transpose(image, [1, 2, 0])
                 image_to_show = image_to_show[:,:,-3:]
-                if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
-                    cv2.imwrite(episode_image_dir+f'sub_epi={sub_epi}-epi_step={epi_steps}.png', image_to_show)
-                if args.display_image:
-                    cv2.imshow('raw', image_to_show)
-                    cv2.waitKey(1)
+                cv2.imwrite(episode_image_dir+f'sub_epi={sub_epi}-epi_step={epi_steps}.png', image_to_show)
 
             # select an action
             action = agent.sample_action((image, propri))

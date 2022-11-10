@@ -341,15 +341,15 @@ class SACRADLearner(BaseLearner):
     def save_policy_to_file(self, model_dir, step):
         torch.save(self._actor.state_dict(), '%s/actor_%s.pt' % (model_dir, step))
         torch.save(self._critic.state_dict(), '%s/critic_%s.pt' % (model_dir, step))
-        torch.save(self._actor_optimizer.state_dict(), '%s/_actor_optimizer_%s.pt' % (model_dir, step))
-        torch.save(self._critic_optimizer.state_dict(), '%s/_critic_optimizer_%s.pt' % (model_dir, step))
-        torch.save(self._log_alpha_optimizer.state_dict(), '%s/_log_alpha_optimizer_%s.pt' % (model_dir, step))
+        # torch.save(self._actor_optimizer.state_dict(), '%s/_actor_optimizer_%s.pt' % (model_dir, step))
+        # torch.save(self._critic_optimizer.state_dict(), '%s/_critic_optimizer_%s.pt' % (model_dir, step))
+        # torch.save(self._log_alpha_optimizer.state_dict(), '%s/_log_alpha_optimizer_%s.pt' % (model_dir, step))
 
     def load_policy_from_file(self, model_dir, step):
         self._performer.load_policy_from_file(model_dir, step)
-        self._actor_optimizer.load_state_dict(torch.load('%s/_actor_optimizer_%s.pt' % (model_dir, step)))
-        self._critic_optimizer.load_state_dict(torch.load('%s/_critic_optimizer_%s.pt' % (model_dir, step)))
-        self._log_alpha_optimizer.load_state_dict(torch.load('%s/_log_alpha_optimizer_%s.pt' % (model_dir, step)))
+        # self._actor_optimizer.load_state_dict(torch.load('%s/_actor_optimizer_%s.pt' % (model_dir, step)))
+        # self._critic_optimizer.load_state_dict(torch.load('%s/_critic_optimizer_%s.pt' % (model_dir, step)))
+        # self._log_alpha_optimizer.load_state_dict(torch.load('%s/_log_alpha_optimizer_%s.pt' % (model_dir, step)))
 
     def close(self):
         if self._args.async_mode:
