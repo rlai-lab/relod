@@ -159,9 +159,9 @@ class LocalWrapper(BaseWrapper):
             raise NotImplementedError('update_policy: {} mode is not supported'.format(self._mode))
 
     def save_policy_to_file(self, *args, **kwargs):
-        if self._mode == MODE.LOCAL_ONLY:
+        if self._mode in [MODE.LOCAL_ONLY, MODE.REMOTE_LOCAL]:
             self._learner.save_policy_to_file(*args, **kwargs)
-        elif self._mode in [MODE.REMOTE_ONLY, MODE.EVALUATION, MODE.REMOTE_LOCAL]:
+        elif self._mode in [MODE.REMOTE_ONLY, MODE.EVALUATION]:
             pass
         else:
             raise NotImplementedError('save_policy_to_file: {} mode is not supported'.format(self._mode))
