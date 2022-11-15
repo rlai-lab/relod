@@ -39,7 +39,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Local remote visual UR5 Reacher')
     # environment
     parser.add_argument('--setup', default='Visual-UR5-min-time')
-    parser.add_argument('--env', default='Visual-UR5-min-time', type=str)
+    parser.add_argument('--env', default='ur5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
     parser.add_argument('--camera_id', default=0, type=int)
     parser.add_argument('--image_width', default=160, type=int)
@@ -85,18 +85,18 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='localhost', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
+    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
     parser.add_argument('--run_type', default='experiment', type=str)
     parser.add_argument('--description', default='', type=str)
-    parser.add_argument('--seed', default=4, type=int)
+    parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--work_dir', default='results/', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=False, action='store_true')
     parser.add_argument('--xtick', default=1200, type=int)
     parser.add_argument('--display_image', default=True, action='store_true')
-    parser.add_argument('--save_image', default=False, action='store_true')
+    parser.add_argument('--save_image', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
@@ -136,7 +136,7 @@ def main():
 
     if args.save_image:
         args.image_dir = args.work_dir+'/images'
-        if mode == MODE.LOCAL_ONLY:
+        if mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION:
             os.makedirs(args.image_dir, exist_ok=False)
 
     env = VisualReacherMinTimeEnv(
@@ -199,30 +199,35 @@ def main():
     # Experiment block starts
     experiment_done = False
     total_steps = 0
-    sub_epi = 0
+    sub_epi = 1
     returns = []
     epi_lens = []
     start_time = time.time()
     print(f'Experiment starts at: {start_time}')
     while not experiment_done:
-        mt.reset_plot() # start a new episode
-        image, prop = env.reset() 
+        # start a new episode
+        if mode == MODE.EVALUATION:
+            image, prop = env.reset()
+            mt.reset_plot() 
+        else:
+            mt.reset_plot() 
+            image, prop = env.reset() 
         agent.send_init_ob((image, prop))
         ret = 0
         epi_steps = 0
         sub_steps = 0
         epi_done = 0
-        if mode == MODE.LOCAL_ONLY and args.save_image:
+        if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
             episode_image_dir = args.image_dir+f'/episode={len(returns)+1}/'
             os.makedirs(episode_image_dir, exist_ok=False)
 
         epi_start_time = time.time()
         while not experiment_done and not epi_done:
-            if args.display_image or (mode == MODE.LOCAL_ONLY and args.save_image):
+            if args.display_image or ((mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image):
                 image_to_show = np.transpose(image, [1, 2, 0])
                 image_to_show = image_to_show[:,:,-3:]
-                if mode == MODE.LOCAL_ONLY and args.save_image:
-                    cv2.imwrite(episode_image_dir+f'{epi_steps}.png', image_to_show)
+                if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
+                    cv2.imwrite(episode_image_dir+f'sub_epi={sub_epi}-epi_step={epi_steps}.png', image_to_show)
                 if args.display_image:
                     cv2.imshow('raw', image_to_show)
                     cv2.waitKey(1)
@@ -255,26 +260,27 @@ def main():
 
             if not epi_done and sub_steps >= episode_length_step: # set timeout here
                 sub_steps = 0
-                sub_epi += 1
                 ret += args.reset_penalty_steps * args.reward
                 total_steps += args.reset_penalty_steps
                 print(f'Sub episode {sub_epi} done.')
 
                 image, prop = env.reset()
                 agent.send_init_ob((image, prop))
+                sub_epi += 1
 
             experiment_done = total_steps >= args.env_steps
 
         # save the last image
-        if mode == MODE.LOCAL_ONLY and args.save_image:
+        if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
             image_to_show = np.transpose(image, [1, 2, 0])
             image_to_show = image_to_show[:,:,-3:]
-            cv2.imwrite(episode_image_dir+f'{epi_steps}.png', image_to_show)
+            cv2.imwrite(episode_image_dir+f'sub_epi={sub_epi}-epi_step={epi_steps}.png', image_to_show)
 
         if epi_done: # episode done, save result
             returns.append(ret)
             epi_lens.append(epi_steps)
-            utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
+            if mode != MODE.EVALUATION:
+                utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
 
             if mode == MODE.LOCAL_ONLY:
                 L.log('train/duration', time.time() - epi_start_time, total_steps)
@@ -283,6 +289,8 @@ def main():
                 L.dump(total_steps)
                 if args.plot_learning_curve:
                     utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
+            
+            sub_epi += 1
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)

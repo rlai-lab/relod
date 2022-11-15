@@ -72,9 +72,9 @@ def parse_args():
     parser.add_argument('--init_temperature', default=0.1, type=float)
     parser.add_argument('--alpha_lr', default=1e-4, type=float)
     # agent
-    parser.add_argument('--remote_ip', default='192.168.0.101', type=str)
+    parser.add_argument('--remote_ip', default='192.168.0.12', type=str)
     parser.add_argument('--port', default=9876, type=int)
-    parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
+    parser.add_argument('--mode', default='e', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
     parser.add_argument('--run_type', default='experiment', type=str)
     parser.add_argument('--description', default='', type=str)
@@ -84,9 +84,9 @@ def parse_args():
     parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=True, action='store_true')
     parser.add_argument('--xtick', default=1500, type=int)
-    parser.add_argument('--save_image', default=False, action='store_true')
+    parser.add_argument('--save_image', default=True, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
-    parser.add_argument('--load_model', default=-1, type=int)
+    parser.add_argument('--load_model', default=140000, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--lock', default=False, action='store_true')
     args = parser.parse_args()
@@ -113,11 +113,16 @@ def main():
     args.work_dir += f'/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
-    os.makedirs(args.model_dir, exist_ok=False)
-    os.makedirs(args.return_dir, exist_ok=False)
-    
+    if mode != MODE.EVALUATION:
+        os.makedirs(args.model_dir, exist_ok=False)
+        os.makedirs(args.return_dir, exist_ok=False)
+    if mode == MODE.LOCAL_ONLY:
+        L = Logger(args.return_dir, use_tb=args.save_tb)
+        
     if args.save_image:
         args.image_dir = args.work_dir+'/images'
+        if mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION:
+            os.makedirs(args.image_dir, exist_ok=False)
     
     if not 'conv' in config:
         image_shape = (0, 0, 0)
@@ -163,7 +168,7 @@ def main():
     # Experiment block starts
     experiment_done = False
     total_steps = 0
-    sub_epi = 0
+    sub_epi = 1
     returns = []
     epi_lens = []
     start_time = time.time()
@@ -182,7 +187,17 @@ def main():
         epi_steps = 0
         sub_steps = 0
         epi_done = 0
+        if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
+            episode_image_dir = args.image_dir+f'/episode={len(returns)+1}/'
+            os.makedirs(episode_image_dir, exist_ok=False)
+
+        epi_start_time = time.time()
         while not experiment_done and not epi_done:
+            if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
+                image_to_show = np.transpose(image, [1, 2, 0])
+                image_to_show = image_to_show[:,:,-3:]
+                cv2.imwrite(episode_image_dir+f'sub_epi={sub_epi}-epi_step={epi_steps}.png', image_to_show)
+
             # select an action
             action = agent.sample_action((image, propri))
 
@@ -208,20 +223,37 @@ def main():
 
             if not epi_done and sub_steps >= episode_length_step: # set timeout here
                 sub_steps = 0
-                sub_epi += 1
                 ret += args.reset_penalty_steps * args.reward
                 total_steps += args.reset_penalty_steps
                 print(f'Sub episode {sub_epi} done.')
 
                 (image, propri) = env.reset()
                 agent.send_init_ob((image, propri))
+                sub_epi += 1
             
             experiment_done = total_steps >= args.env_steps
+
+        # save the last image
+        if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
+            image_to_show = np.transpose(image, [1, 2, 0])
+            image_to_show = image_to_show[:,:,-3:]
+            cv2.imwrite(episode_image_dir+f'sub_epi={sub_epi}-epi_step={epi_steps}.png', image_to_show)
 
         if epi_done: # episode done, save result
             returns.append(ret)
             epi_lens.append(epi_steps)
-            utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
+            if mode != MODE.EVALUATION:
+                utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
+
+            if mode == MODE.LOCAL_ONLY:
+                L.log('train/duration', time.time() - epi_start_time, total_steps)
+                L.log('train/episode_reward', ret, total_steps)
+                L.log('train/episode', len(returns), total_steps)
+                L.dump(total_steps)
+                if args.plot_learning_curve:
+                    utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
+            
+            sub_epi += 1
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)
@@ -229,6 +261,10 @@ def main():
     # Clean up
     agent.close()
     env.close()
+
+    # always show a learning curve at the end
+    if mode == MODE.LOCAL_ONLY:
+        utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
     print(f"Finished in {duration}s")
 
 def run_init_policy_test(agent, args):
