@@ -57,13 +57,13 @@ def parse_args():
     parser.add_argument('--image_height', default=120, type=int)
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--reset_penalty_steps', default=67, type=int)
-    parser.add_argument('--reward', default=-0.1, type=float)
+    parser.add_argument('--reward', default=-1, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--env_steps', default=200000, type=int)
+    parser.add_argument('--env_steps', default=151000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
