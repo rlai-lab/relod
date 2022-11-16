@@ -286,9 +286,54 @@ def ur5_reacher_all_runs_ppo():
 
     plot_ur5_reacher(basepaths=basepaths, fname_parts=fname_parts, colors=colors, labels=labels, save_path=save_path, title="PPO in different modes\non UR5-VisualReacher")
 
+
+def make_inset_video_matplotlib():
+    import imageio
+    import glob
+
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+    import matplotlib.animation as animation
+    
+    basepath = "/Users/gautham/Pictures/Minimum-time Paper/Videos/Create Learned Policy"
+    
+    for num_episode in range(7, 22):
+        fp = basepath + "/good_images/episode={}".format(num_episode)
+        all_pngs = glob.glob(fp + "/*.png")
+        frames = [] # for storing the generated images
+        fig = plt.figure()
+        plt.axis('off')
+        for i in range(len(all_pngs)):
+            img = imageio.imread(fp + f"/sub_epi={num_episode}-epi_step={i}.png")
+            frames.append([plt.imshow(img, animated=True, interpolation='nearest')])
+
+        ani = animation.ArtistAnimation(fig, frames, interval=45, blit=True, repeat_delay=1000)
+        ani.save(basepath + f'/epi_{num_episode}.mp4')  # Do not specify fps here. It's determined by interval above
+    # plt.show()
+
+def make_inset_video():
+    import glob
+    import cv2
+    
+    basepath = "/Users/gautham/Pictures/Minimum-time Paper/Videos/Franka Random Policy"
+    dt = 0.04
+    img_size = (160, 90)
+    
+    for num_episode in [1]:
+        fp = basepath + "/images/episode={}".format(num_episode)
+        all_pngs = glob.glob(fp + "/*.png")
+
+        out = cv2.VideoWriter(basepath + f'/epi_{num_episode}.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 1//dt, img_size)
+        for i in range(len(all_pngs)):
+            img = cv2.imread(fp + f"/sub_epi={num_episode}-epi_step={i}.png")
+            out.write(img)
+
+        out.release()
+
 if __name__ == '__main__':
     # mpl.style.use('seaborn')
-    plot_create_reacher(title="SAC in different modes\non Create-Reacher")
+    # plot_create_reacher(title="SAC in different modes\non Create-Reacher")
     # iros_ur5_main_plot()
     # ur5_reacher_all_runs_ppo()
     # yuan_mahmood_comparison()
+    make_inset_video()
