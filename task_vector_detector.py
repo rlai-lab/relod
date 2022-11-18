@@ -86,6 +86,7 @@ def parse_args():
     # agent
     parser.add_argument('--remote_ip', default='192.168.0.100', type=str)
     parser.add_argument('--port', default=9876, type=int)
+    parser.add_argument('--mode', default='l', type=str, help="Modes in ['r', 'l', 'rl', 'e'] ")
     # misc
     parser.add_argument('--seed', default=3, type=int)
     parser.add_argument('--work_dir', default='.', type=str)
@@ -104,7 +105,12 @@ def parse_args():
 def main():
     args = parse_args()
 
-    mode = MODE.LOCAL_ONLY # Only this can be supported    
+    if args.mode == 'l':
+        mode = MODE.LOCAL_ONLY
+    elif args.mode == 'e':
+        mode = MODE.EVALUATION
+    else:
+        raise NotImplementedError("Only local and evaluation mode supported!")
 
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -133,21 +139,17 @@ def main():
     args.load_buffer_path = ''
     if args.load_buffer:
         args.load_buffer_path =  args.work_dir + "/{}_sac_buffer".format(args.robot_serial)
-
-    os.makedirs(args.model_dir, exist_ok=True)
-    os.makedirs(args.return_dir, exist_ok=True)
-    
+  
     if args.save_image:
-        args.image_dir = args.work_dir+'/images'
+        args.image_dir = args.work_dir + '/images'
+        if mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION:
+            os.makedirs(args.image_dir, exist_ok=False)
 
     if mode == MODE.LOCAL_ONLY:
-        utils.make_dir(args.work_dir)
-        utils.make_dir(args.model_dir)
+        os.makedirs(args.work_dir, exist_ok=True)
+        os.makedirs(args.model_dir, exist_ok=True)
+        os.makedirs(args.return_dir, exist_ok=True)
         L = Logger(args.work_dir, use_tb=args.save_tb)
-
-    if mode == MODE.EVALUATION:
-        args.image_dir = args.work_dir+'image'
-        utils.make_dir(args.image_dir)
     
     if not 'conv' in config:
         image_shape = (0, 0, 0)
@@ -234,30 +236,34 @@ def main():
             
         tic = time.time()
 
-        # First inference took a while (~1 min), do it before the agent-env interaction loop
-        if mode != MODE.REMOTE_ONLY and total_steps == 0:
-            agent.performer.sample_action((image, propri))
-            agent.performer.sample_action((image, propri))
-            agent.performer.sample_action((image, propri))
-
         agent.send_init_ob((image, propri))
         ret = 0
         epi_steps = 0
         if args.load_model > 0:
             data = np.loadtxt(os.path.join(args.return_dir, "return.txt"))
-            returns = list(data[1])
-            epi_lens = list(data[0])
-            total_steps = int(sum(epi_lens))
+
+            if mode != MODE.EVALUATION:
+                returns = list(data[1])
+                epi_lens = list(data[0])
+                total_steps = int(sum(epi_lens))
 
         sub_steps = 0
         epi_done = 0
+
+        if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
+            episode_image_dir = args.image_dir + f'/episode={len(returns)+1}/'
+            os.makedirs(episode_image_dir, exist_ok=False)
+
         while not experiment_done and not epi_done:
             # Visualizer process
             cv_img = image[9:12, :, :]
             cv_img = np.moveaxis(cv_img, 0, -1).astype(np.uint8)
             # cv_img = np.moveaxis(cv_img, 0, 1).astype(np.uint8)
             with vp._lock:
-                vp.img = cv_img    
+                vp.img = cv_img
+            
+            if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
+                cv2.imwrite(episode_image_dir + f'sub_epi={sub_epi+len(returns)}-epi_step={epi_steps}.png', cv_img)    
 
             # select an action
             action = agent.sample_action((image, propri))
@@ -281,10 +287,10 @@ def main():
                 total_steps += 100
                 epi_steps += 100
 
-            # store
-            agent.push_sample((image, propri), action, reward, (next_image, next_propri), epi_done)
-
-            agent.update_policy(total_steps)
+            # Push to replay buffer and make learning update
+            if mode != MODE.EVALUATION:
+                agent.push_sample((image, propri), action, reward, (next_image, next_propri), epi_done)
+                agent.update_policy(total_steps)
             
             image = next_image
             propri = next_propri
@@ -301,7 +307,8 @@ def main():
             tic = time.time()
 
             if args.save_model and total_steps % args.save_model_freq == 0:
-                agent.save_policy_to_file(args.model_dir, total_steps)
+                if mode != MODE.EVALUATION:
+                    agent.save_policy_to_file(args.model_dir, total_steps)
                 # Plot
                 if returns:
                     plot_rets, plot_x = smoothed_curve(
@@ -319,8 +326,9 @@ def main():
                 print(f'Sub episode {sub_epi} done.')
                 
                 # Save buffer when Vector is charging; Pause learning updates to prevent over-fitting
-                if env.is_charging_necessary:                    
-                    agent.save_buffer()
+                if env.is_charging_necessary:      
+                    if mode != MODE.EVALUATION:              
+                        agent.save_buffer()
                     #agent._learner.pause_update()
                     learning_paused = True
 
@@ -328,16 +336,25 @@ def main():
                 agent.send_init_ob((image, propri))
             
             experiment_done = total_steps >= args.env_steps
+        
+        # save the last image
+        if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
+            cv_img = image[9:12, :, :]
+            cv_img = np.moveaxis(cv_img, 0, -1).astype(np.uint8)
+            cv2.imwrite(episode_image_dir+f'sub_epi={sub_epi+len(returns)}-epi_step={epi_steps}.png', cv_img)
+
 
         if epi_done: # episode done, save result
             returns.append(ret)
             epi_lens.append(epi_steps)
             print(f'Episode {len(epi_lens)} ended in {epi_steps} steps.')
-            utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
+            if mode != MODE.EVALUATION:
+                utils.save_returns(args.return_dir+'/return.txt', returns, epi_lens)
 
             # Save buffer when Vector is charging; Pause learning updates to prevent over-fitting
-            if env.is_charging_necessary:                    
-                agent.save_buffer()
+            if env.is_charging_necessary:
+                if mode != MODE.EVALUATION:                    
+                    agent.save_buffer()
                 #agent._learner.pause_update()
                 learning_paused = True
 
