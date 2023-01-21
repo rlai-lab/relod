@@ -133,6 +133,7 @@ backups/
 remote/
 *err
 *out
+*results*
 
 # PhpStorm
 .idea
