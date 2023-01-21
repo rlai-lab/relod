@@ -1,5 +1,0 @@
-timeout=266, seed=0: 7
-timeout=266, seed=1: 3
-timeout=266, seed=2: 4
-timeout=266, seed=3: 0
-timeout=266, seed=4: 4

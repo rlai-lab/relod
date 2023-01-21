@@ -51,7 +51,7 @@ def parse_args():
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--env_steps', default=150000, type=int)
+    parser.add_argument('--env_steps', default=100000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--sync_mode', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
@@ -78,7 +78,7 @@ def parse_args():
     # misc
     parser.add_argument('--run_type', default='experiment', type=str)
     parser.add_argument('--description', default='', type=str)
-    parser.add_argument('--seed', default=2, type=int)
+    parser.add_argument('--seed', default=1, type=int)
     parser.add_argument('--work_dir', default='results/', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=False, action='store_true')
