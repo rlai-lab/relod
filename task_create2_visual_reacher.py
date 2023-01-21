@@ -1,3 +1,4 @@
+import cv2
 import torch
 import argparse
 import relod.utils as utils
@@ -13,7 +14,7 @@ from senseact.utils import NormalizedEnv
 from relod.envs.create2_visual_reacher.env import Create2VisualReacherEnv
 from tqdm import tqdm
 import numpy as np
-import cv2
+# import cv2
 
 config = {
     'conv': [
@@ -138,7 +139,7 @@ def main():
         )
     
     env = NormalizedEnv(env)
-    utils.set_seed_everywhere(args.seed, env)
+    utils.set_seed_everywhere(args.seed, None)
     env.start()
 
     args.image_shape = env.image_space.shape

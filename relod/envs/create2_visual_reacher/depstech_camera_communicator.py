@@ -28,7 +28,7 @@ class CameraCommunicator(Communicator):
 
         # query camera default resolution or test custom resolution if needed and release it so that
         # the camera can be opened in the child process
-        temp_cap = cv.VideoCapture(device_id)
+        temp_cap = cv.VideoCapture(device_id, cv.CAP_V4L2)
 
         if not temp_cap.isOpened():
             raise IOError("Unable to open camera on device id {}".format(self._device_id))
@@ -67,7 +67,7 @@ class CameraCommunicator(Communicator):
 
     def run(self):
         """Opening the video IO in the child process and invoke parent 'run' """
-        self._cap = cv.VideoCapture(self._device_id)
+        self._cap = cv.VideoCapture(self._device_id, cv.CAP_V4L2)
 
         if not self._cap.isOpened():
             raise IOError("Unable to open camera on device id {}".format(self._device_id))
