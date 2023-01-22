@@ -79,7 +79,7 @@ def parse_args():
     # misc
     parser.add_argument('--run_type', default='experiment', type=str)
     parser.add_argument('--description', default='', type=str)
-    parser.add_argument('--seed', default=1, type=int)
+    parser.add_argument('--seed', default=4, type=int)
     parser.add_argument('--work_dir', default='results/', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=False, action='store_true')
