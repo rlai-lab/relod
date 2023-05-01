@@ -6,6 +6,7 @@ import queue
 import relod.utils as utils
 import numpy as np
 import torch.multiprocessing as mp
+from threading import Thread
 
 from relod.algo.sac_rad_buffer import AsyncRadReplayBuffer, RadReplayBuffer
 from relod.algo.rl_agent import BaseLearner, BasePerformer
@@ -96,10 +97,10 @@ class SACRADLearner(BaseLearner):
 
         if self._args.async_mode:
             # initialize processes in 'spawn' mode, required by CUDA runtime
-            ctx = mp.get_context('spawn')
+            self.ctx = mp.get_context('spawn')
             episode_length_step = int(self._args.episode_length_time / self._args.dt)
-            self._sample_queue = ctx.Queue(episode_length_step+100)
-            self._minibatch_queue = ctx.Queue(100)
+            self._sample_queue = self.ctx.Queue(episode_length_step+100)
+            self._minibatch_queue = self.ctx.Queue(2)
 
             if not hasattr(self._args, "save_buffer_path"):
                 self._args.save_buffer_path = ''
@@ -108,22 +109,8 @@ class SACRADLearner(BaseLearner):
                 self._args.load_buffer_path = ''
 
             # initialize data augmentation process
-            self._replay_buffer_process = ctx.Process(target=AsyncRadReplayBuffer,
-                                    args=(
-                                        self._args.image_shape,
-                                        self._args.proprioception_shape,
-                                        self._args.action_shape,
-                                        self._args.replay_buffer_capacity,
-                                        self._args.batch_size,
-                                        self._sample_queue,
-                                        self._minibatch_queue,
-                                        self._args.init_steps,
-                                        self._args.max_updates_per_step,
-                                        self._args.save_buffer_path,
-                                        self._args.load_buffer_path,
-                                        )
-                                )
-            self._replay_buffer_process.start()
+            self._replay_buffer_process = None
+
         else:
             self._replay_buffer = RadReplayBuffer(
                 image_shape=self._args.image_shape,
@@ -158,8 +145,8 @@ class SACRADLearner(BaseLearner):
         if self._args.async_mode:
             self._share_memory()
 
-            self._update_queue = ctx.Queue(2)
-            self._update_process = ctx.Process(target=self._async_update)
+            self._update_queue = self.ctx.Queue(2)
+            self._update_process = self.ctx.Process(target=self._async_update)
             self._update_process.start()
 
     def get_policy(self):
@@ -309,13 +296,63 @@ class SACRADLearner(BaseLearner):
             print("Update {} took {:.4f}s to update the model".format(self._num_updates, time.time()-tic))
         
         return stats
-        
-    def _async_update(self):
+    
+    def _minibatch_rcv(self):
         while True:
-            try:
-                self._update_queue.put_nowait(self._update(*self._minibatch_queue.get()))
-            except queue.Full:
-                pass
+            self.minibatch_rcv_queue.put(self._minibatch_queue.get())
+
+    def _async_update(self):
+        if self._args.async_buffer:
+            self._replay_buffer_process = self.ctx.Process(target=AsyncRadReplayBuffer,
+                                        args=(
+                                            self._args.image_shape,
+                                            self._args.proprioception_shape,
+                                            self._args.action_shape,
+                                            self._args.replay_buffer_capacity,
+                                            self._args.batch_size,
+                                            self._sample_queue,
+                                            self._minibatch_queue,
+                                            self._args.init_steps,
+                                            self._args.max_updates_per_step,
+                                            self._args.save_buffer_path,
+                                            self._args.load_buffer_path,
+                                            )
+                                    )
+            self._replay_buffer_process.start()
+
+            self.minibatch_rcv_queue = queue.Queue(5)
+            self._minibatch_rcv_thread = Thread(target=self._minibatch_rcv)
+            self._minibatch_rcv_thread.start()
+
+            while True:
+                try:
+                    self._update_queue.put_nowait(self._update(*self.minibatch_rcv_queue.get()))
+                except queue.Full:
+                    pass
+        else:
+            self._replay_buffer = AsyncRadReplayBuffer(
+                                            self._args.image_shape,
+                                            self._args.proprioception_shape,
+                                            self._args.action_shape,
+                                            self._args.replay_buffer_capacity,
+                                            self._args.batch_size,
+                                            self._sample_queue,
+                                            self._minibatch_queue,
+                                            self._args.init_steps,
+                                            self._args.max_updates_per_step,
+                                            self._args.save_buffer_path,
+                                            self._args.load_buffer_path,
+                                            )
+
+            while True:
+                if self._replay_buffer.count < self._args.init_steps:
+                    time.sleep(0.1)
+                else:
+                    try: 
+                        self._update_queue.put_nowait(self._update(*self._replay_buffer.sample()))                        
+                    except queue.Full:
+                        pass
+
 
     def push_sample(self, ob, action, reward, next_ob, done):
         (image, propri) = ob
@@ -353,9 +390,8 @@ class SACRADLearner(BaseLearner):
 
     def close(self):
         if self._args.async_mode:
-            self._replay_buffer_process.terminate()
-            self._update_process.terminate()
-            self._replay_buffer_process.join()
+            self._sample_queue.put("exit")
+            self._update_process.terminate() 
             self._update_process.join()
 
         del self

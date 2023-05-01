@@ -43,9 +43,11 @@ def parse_args():
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--env_steps', default=20000, type=int)
+    parser.add_argument('--env_steps', default=25000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--async_mode', default=True, action='store_true')
+    parser.add_argument('--async_buffer', default=False, action='store_true')
+
     parser.add_argument('--max_updates_per_step', default=1, type=float)
     parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
@@ -93,7 +95,7 @@ def main():
     else:
         raise  NotImplementedError()
 
-    if args.device is '':
+    if args.device == '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
     if not 'conv' in config:
