@@ -12,9 +12,13 @@ Check out how ReLoD learns to perform vision-based tasks on UR5 and Roomba (iRob
 N.B: All vision-based experiments use Random Augmented Data (RAD) to improve sample efficiency
 
 ## Supported Tasks
-- UR5-VisualReacher
-- Create-Reacher
-- Vector-ChargerDetector
+
+| ![UR5-VisualReacher](docs/UR5-VisualReacher.gif) <br> UR-Reacher | ![Franka-VisualReacher](docs/Franka-VisualReacher.gif) <br /> Franka-VisualReacher |
+| --- | --- |
+
+| ![Create-Reacher](docs/Create-Reacher.gif) <br> Create-Reacher | ![Franka-VisualReacher](docs/Vector-ChargerDetector.gif) <br /> Vector-ChargerDetector |
+| --- | --- |
+
 
 ## Installation instructions
 1. Download Mujoco and license files to ~/.mujoco
