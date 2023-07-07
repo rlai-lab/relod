@@ -111,9 +111,9 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
-    args.model_dir = args.work_dir+'/models'
-    args.return_dir = args.work_dir+'/returns'
+    args.work_dir += f'/{args.env}_timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.model_dir = args.work_dir
+    args.return_dir = args.work_dir
     if mode != MODE.EVALUATION:
         os.makedirs(args.model_dir, exist_ok=True)
         os.makedirs(args.return_dir, exist_ok=True)
