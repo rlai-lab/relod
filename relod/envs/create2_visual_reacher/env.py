@@ -46,7 +46,7 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         self._episode_length_time = episode_length_time
         self._episode_length_step = int(episode_length_time / dt)
         self._internal_timing = 0.015
-        self._hsv_mask = ((30, 60, 0), (80, 255, 255))
+        self._hsv_mask = ((30, 60, 0), (85, 255, 255))
         self._min_target_size = min_target_size
         self._min_battery = 1200
         self._max_battery = 1850
