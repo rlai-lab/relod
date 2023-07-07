@@ -296,13 +296,20 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
             self._write_opcode('drive_direct', 0, 0)
             time.sleep(0.1)
 
-        # drive backward and rotate randomly
+        # rotate and drive backward 
         logging.info("Moving Create2 into position.")
         target_values = [-300, -300]
         move_time = np.random.uniform(low=1, high=1.5)
-        rotate_time = np.random.uniform(low=0.5, high=1)
+        rotate_time_1 = np.random.uniform(low=0.5, high=1)
+        rotate_time_2 = np.random.uniform(low=0.5, high=1)
         direction = np.random.choice((1, -1))
         
+        # rotate
+        self._write_opcode('drive_direct', *(300*direction, -300*direction))
+        time.sleep(rotate_time_1)
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
+
         # back
         self._write_opcode('drive_direct', *target_values)
         time.sleep(move_time)
@@ -311,15 +318,15 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
 
         # rotate
         self._write_opcode('drive_direct', *(300*direction, -300*direction))
-        time.sleep(rotate_time)
+        time.sleep(rotate_time_2)
         self._write_opcode('drive', 0, 0)
         time.sleep(0.1)
         
-        # back
-        self._write_opcode('drive_direct', *target_values)
-        time.sleep(move_time)
-        self._write_opcode('drive', 0, 0)
-        time.sleep(0.1)
+        # # back
+        # self._write_opcode('drive_direct', *target_values)
+        # time.sleep(move_time)
+        # self._write_opcode('drive', 0, 0)
+        # time.sleep(0.1)
         '''
         rand_state_array_type, rand_state_array_size, rand_state_array = utils.get_random_state_array(
             self._rand_obj_.get_state()
