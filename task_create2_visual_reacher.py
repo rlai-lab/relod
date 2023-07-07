@@ -80,7 +80,7 @@ def parse_args():
     parser.add_argument('--run_type', default='experiment', type=str)
     parser.add_argument('--description', default='', type=str)
     parser.add_argument('--seed', default=4, type=int)
-    parser.add_argument('--work_dir', default='results/', type=str)
+    parser.add_argument('--work_dir', default='results', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=True, action='store_true')
@@ -115,8 +115,8 @@ def main():
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
     if mode != MODE.EVALUATION:
-        os.makedirs(args.model_dir, exist_ok=False)
-        os.makedirs(args.return_dir, exist_ok=False)
+        os.makedirs(args.model_dir, exist_ok=True)
+        os.makedirs(args.return_dir, exist_ok=True)
     if mode == MODE.LOCAL_ONLY:
         L = Logger(args.return_dir, use_tb=args.save_tb)
         
