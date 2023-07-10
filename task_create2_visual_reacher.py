@@ -47,6 +47,8 @@ def parse_args():
     parser.add_argument('--min_target_size', default=0.12, type=float)
     parser.add_argument('--reset_penalty_steps', default=67, type=int)
     parser.add_argument('--reward', default=-1, type=float)
+    parser.add_argument('--pause_before_reset', default=0, type=float)
+    parser.add_argument('--pause_after_reset', default=0, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -135,7 +137,9 @@ def main():
         dt=args.dt,
         image_shape=image_shape,
         camera_id=args.camera_id,
-        min_target_size=args.min_target_size
+        min_target_size=args.min_target_size,
+        pause_before_reset=args.pause_before_reset,
+        pause_after_reset=args.pause_after_reset,
         )
     
     env = NormalizedEnv(env)
