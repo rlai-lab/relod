@@ -257,6 +257,10 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         This method does the handling of charging the Create2, repositioning, and set to the correct mode.
         """
         logging.info("Resetting...")
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
+        # N.B: pause_before_reset should be greater than zero only for demo purposes
+        time.sleep(self.pause_before_reset)
 
         self._episode_step_.value = -1
         np.copyto(self._prev_action_, np.array([0, 0]))
@@ -272,8 +276,7 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
             while not self._sensor_comms['Camera'].sensor_buffer.updated():
                 time.sleep(0.01)
 
-        # N.B: pause_before_reset should be greater than zero only for demo purposes
-        time.sleep(self.pause_before_reset)
+
 
         sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
         print('current charge:', sensor_window[-1][0]['battery charge'])
