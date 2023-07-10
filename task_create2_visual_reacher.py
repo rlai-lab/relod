@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--stack_frames', default=3, type=int)
     parser.add_argument('--camera_id', default=0, type=int)
-    parser.add_argument('--min_target_size', default=0.12, type=float)
+    parser.add_argument('--min_target_size', default=0.2, type=float)
     parser.add_argument('--reset_penalty_steps', default=67, type=int)
     parser.add_argument('--reward', default=-1, type=float)
     parser.add_argument('--pause_before_reset', default=0, type=float)

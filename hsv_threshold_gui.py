@@ -75,6 +75,10 @@ while(1):
     output = cv2.bitwise_and(img,img, mask= mask)
     gray = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
     (thresh, blackAndWhiteImage) = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(blackAndWhiteImage, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.fillPoly(blackAndWhiteImage, pts=contours, color=(255, 255, 255))
+    target_size = np.sum(blackAndWhiteImage/255.) / blackAndWhiteImage.size
+    #print('target size:', target_size)
 
     # Print if there is a change in HSV value
     if( (phMin != hMin) | (psMin != sMin) | (pvMin != vMin) | (phMax != hMax) | (psMax != sMax) | (pvMax != vMax) ):
@@ -89,7 +93,7 @@ while(1):
     # Display output image
     cv2.imshow('image', output)
     print(np.sum(blackAndWhiteImage/255.)/float(blackAndWhiteImage.size), np.sum(blackAndWhiteImage/255.),
-          float(blackAndWhiteImage.size))
+          float(blackAndWhiteImage.size), target_size)
 
     # Wait longer to prevent freeze for videos.
     if cv2.waitKey(waitTime) & 0xFF == ord('q'):
