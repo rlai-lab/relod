@@ -258,9 +258,6 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         """
         logging.info("Resetting...")
 
-        # N.B: pause_before_reset should be greater than zero only for demo purposes
-        time.sleep(self.pause_before_reset)
-
         self._episode_step_.value = -1
         np.copyto(self._prev_action_, np.array([0, 0]))
         for d in self._observation_def:
@@ -274,6 +271,9 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         if self._image_shape != (0, 0, 0):
             while not self._sensor_comms['Camera'].sensor_buffer.updated():
                 time.sleep(0.01)
+
+        # N.B: pause_before_reset should be greater than zero only for demo purposes
+        time.sleep(self.pause_before_reset)
 
         sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
         print('current charge:', sensor_window[-1][0]['battery charge'])
