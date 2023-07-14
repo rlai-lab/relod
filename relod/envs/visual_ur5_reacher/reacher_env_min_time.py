@@ -374,7 +374,7 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
     def _reset_arm(self, reset_angles):
         """Sends reset packet to communicator and sleeps until executed."""
         self._actuator_comms['UR5'].actuator_buffer.write(self._stopj_packet)
-        time.sleep(0.5)
+        time.sleep(2.5)
 
         self._reset_packet[1:1 + 6][self._joint_indices] = reset_angles
         self._actuator_comms['UR5'].actuator_buffer.write(self._reset_packet)
@@ -653,6 +653,7 @@ class ReacherEnv(RTRLBaseEnv, gym.core.Env):
         if inside_angle_bound:
             self.angle_return_point = False
         if not inside_bound:
+            print("outside box bound")
             if self.return_point is None:
                 # we are outside the bounds and return point wasn't computed yet
                 self.escaped_the_box = True

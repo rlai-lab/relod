@@ -1,3 +1,4 @@
+import sys
 import torch
 import argparse
 import relod.utils as utils
@@ -96,7 +97,7 @@ def parse_args():
     parser.add_argument('--plot_learning_curve', default=False, action='store_true')
     parser.add_argument('--xtick', default=1200, type=int)
     parser.add_argument('--display_image', default=True, action='store_true')
-    parser.add_argument('--save_image', default=True, action='store_true')
+    parser.add_argument('--save_image', default=False, action='store_true')
     parser.add_argument('--save_model_freq', default=10000, type=int)
     parser.add_argument('--load_model', default=-1, type=int)
     parser.add_argument('--device', default='cuda:0', type=str)
@@ -107,6 +108,45 @@ def parse_args():
     assert args.reward < 0 and args.reset_penalty_steps >= 0
     args.async_mode = not args.sync_mode
     return args
+
+def get_size_tol(step):
+    # tols = [.01, .015, .02, .025, .03] # near monitor, end eff. high y = .55
+    # tols = [.005, .01, .015, .022, .03] # far monitor, end eff. high y = .7
+    # if step < 10000:
+    #     tol = tols[0]
+    # elif step < 20000:
+    #     tol = tols[1]
+    # elif step < 30000:
+    #     tol = tols[2]
+    # elif step < 45000:
+    #     tol = tols[3]
+    # else:
+    #     tol = tols[4]
+
+    # long run with far monitor
+    tols = [.005, .01, .015, .02, .023, .026, .03] # end eff. high y = .7
+    if step < 10000:
+        tol = tols[0]
+    elif step < 20000:
+        tol = tols[1]
+    elif step < 30000:
+        tol = tols[2]
+    elif step < 45000:
+        tol = tols[3]
+    elif step < 60000:
+        tol = tols[4]
+    elif step < 80000:
+        tol = tols[5]
+    else:
+        tol = tols[6]
+
+    return tol
+
+def clean_and_exit(env, agent):
+    env.reset()
+    agent.close()
+    env.close()
+    sys.exit(0)
 
 def main():
     args = parse_args()
@@ -125,7 +165,7 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/{args.env}/timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.work_dir += f'{args.description}/{args.env}/timeout={args.episode_length_time:.0f}/seed={args.seed}'
     args.model_dir = args.work_dir+'/models'
     args.return_dir = args.work_dir+'/returns'
     if mode != MODE.EVALUATION:
@@ -159,12 +199,19 @@ def main():
     utils.set_seed_everywhere(args.seed, None)
     mt = MonitorTarget()
     mt.reset_plot()
-    input('go?')
+    # input('go?')
     image, prop = env.reset()
     image_to_show = np.transpose(image, [1, 2, 0])
     image_to_show = image_to_show[:,:,-3:]
+    image_size = tuple(int(dim * 8) for dim in reversed(image_to_show.shape[:2]))
+    image_to_show = cv2.resize(image_to_show, image_size)
+    cv2.namedWindow('raw')
+    cv2.moveWindow('raw', 2000, 200)
     cv2.imshow('raw', image_to_show)
-    cv2.waitKey(0)
+    if args.load_model == -1:
+        cv2.waitKey(0)
+    else:
+        cv2.waitKey(100)
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
     args.action_shape = env.action_space.shape
@@ -223,12 +270,16 @@ def main():
 
         epi_start_time = time.time()
         while not experiment_done and not epi_done:
+            if mode != MODE.EVALUATION:
+                env._size_tol = get_size_tol(total_steps)
+
             if args.display_image or ((mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image):
                 image_to_show = np.transpose(image, [1, 2, 0])
                 image_to_show = image_to_show[:,:,-3:]
                 if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
                     cv2.imwrite(episode_image_dir+f'sub_epi={sub_epi}-epi_step={epi_steps}.png', image_to_show)
                 if args.display_image:
+                    image_to_show = cv2.resize(image_to_show, image_size)
                     cv2.imshow('raw', image_to_show)
                     cv2.waitKey(1)
 
@@ -261,12 +312,22 @@ def main():
             if not epi_done and sub_steps >= episode_length_step: # set timeout here
                 sub_steps = 0
                 ret += args.reset_penalty_steps * args.reward
-                total_steps += args.reset_penalty_steps
-                print(f'Sub episode {sub_epi} done.')
+                # total_steps += args.reset_penalty_steps
+                for _ in range(args.reset_penalty_steps):
+                    total_steps += 1
+                    if args.save_model and total_steps % args.save_model_freq == 0:
+                        agent.save_policy_to_file(args.model_dir, total_steps)
+                print(f'Sub episode {sub_epi} done.\t steps: {total_steps}\t ret: {ret}\t done_epis: {len(epi_lens)}\t size_tol: {env._size_tol}')
 
                 image, prop = env.reset()
                 agent.send_init_ob((image, prop))
                 sub_epi += 1
+
+                if args.load_model != 180000 and sub_epi >= 4:
+                    clean_and_exit(env, agent)
+
+            if epi_done and args.load_model != 180000 and (sub_epi + len(epi_lens) + 1) >= 3:
+                clean_and_exit(env, agent)
 
             experiment_done = total_steps >= args.env_steps
 

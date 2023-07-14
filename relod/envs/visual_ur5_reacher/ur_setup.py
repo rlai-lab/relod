@@ -158,9 +158,9 @@ setups = {
                   #'end_effector_high': np.array([0.2, 0.4, 1.0]),
                   #'end_effector_low': np.array([-0.4, 0.1, 0.1]),
                   #'end_effector_high': np.array([0.4, 0.8, 0.8]),
-                  'end_effector_low': np.array([-0.25, 0.17, 0.37]),
+                  'end_effector_low': np.array([-0.4, 0.17, 0.37]),
                   # for origin: -0.1, 0.3, 0.6
-                  'end_effector_high': np.array([0.15, 0.5, 0.63]),
+                  'end_effector_high': np.array([0.15, 0.7, 0.63]),
                   'angles_low':np.pi/180 * np.array(
                       [ 50, # base
                        -120, # shoulder
