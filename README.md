@@ -43,6 +43,23 @@ source ~/.bashrc
 pip install -r requirements.txt
 pip install .
 ```
+## Running the Demo
+This branch was modified to run a demo on the UR5.
+It is a minimum time visual reaching task with this [learning script](https://github.com/rlai-lab/relod/blob/demo/task_ur5_visual_reacher_min_task.py).
+The target monitor in this setup was right against the wall as far as possible from the arm.
+To run the demo, put the cursor on the monitor in front of the robot and run
+```bash
+./demo.sh
+```
+Press enter after the camera window pops up.
+The demo script runs the initial policy and policies after 20 and 60 minutes of training each for 3 episodes. Then, it runs the final policy indefinitely.
+To train from scratch, you can run
+```python
+python task_ur5_visual_reacher_min_task.py --env_steps 200000 --mode l --save_model --description your_description
+```
+If the program blocks without any output and the camera LED is on before starting the program, the motion app might be using the camera.
+You can stop the app by running `sudo service motion stop`.
+
 
 ## Cite
 Wang, Y.⋆, Vasan, G.⋆, & Mahmood, A. R. (2023). Real-time reinforcement learning for vision-based robotics utilizing local and remote computers. In *Proceedings of the 2023 International Conference on Robotics and Automation (ICRA).*
