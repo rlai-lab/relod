@@ -44,9 +44,11 @@ def parse_args():
     parser.add_argument('--image_width', default=160, type=int)
     parser.add_argument('--stack_frames', default=3, type=int)
     parser.add_argument('--camera_id', default=0, type=int)
-    parser.add_argument('--min_target_size', default=0.12, type=float)
+    parser.add_argument('--min_target_size', default=0.2, type=float)
     parser.add_argument('--reset_penalty_steps', default=67, type=int)
     parser.add_argument('--reward', default=-1, type=float)
+    parser.add_argument('--pause_before_reset', default=0, type=float)
+    parser.add_argument('--pause_after_reset', default=0, type=float)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -80,7 +82,7 @@ def parse_args():
     parser.add_argument('--run_type', default='experiment', type=str)
     parser.add_argument('--description', default='', type=str)
     parser.add_argument('--seed', default=4, type=int)
-    parser.add_argument('--work_dir', default='results/', type=str)
+    parser.add_argument('--work_dir', default='results', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--plot_learning_curve', default=True, action='store_true')
@@ -111,12 +113,12 @@ def main():
     if args.device is '':
         args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    args.work_dir += f'/{args.env}/visual/timeout={args.episode_length_time:.0f}/seed={args.seed}'
-    args.model_dir = args.work_dir+'/models'
-    args.return_dir = args.work_dir+'/returns'
+    args.work_dir += f'/{args.env}_timeout={args.episode_length_time:.0f}/seed={args.seed}'
+    args.model_dir = args.work_dir
+    args.return_dir = args.work_dir
     if mode != MODE.EVALUATION:
-        os.makedirs(args.model_dir, exist_ok=False)
-        os.makedirs(args.return_dir, exist_ok=False)
+        os.makedirs(args.model_dir, exist_ok=True)
+        os.makedirs(args.return_dir, exist_ok=True)
     if mode == MODE.LOCAL_ONLY:
         L = Logger(args.return_dir, use_tb=args.save_tb)
         
@@ -135,7 +137,9 @@ def main():
         dt=args.dt,
         image_shape=image_shape,
         camera_id=args.camera_id,
-        min_target_size=args.min_target_size
+        min_target_size=args.min_target_size,
+        pause_before_reset=args.pause_before_reset,
+        pause_after_reset=args.pause_after_reset,
         )
     
     env = NormalizedEnv(env)

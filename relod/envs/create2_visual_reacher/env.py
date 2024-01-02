@@ -30,7 +30,7 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
     """
 
     def __init__(self, episode_length_time=30, port='/dev/ttyUSB0', obs_history=1, dt=0.015, image_shape=(0, 0, 0),
-                 camera_id=0, min_target_size=0.1, **kwargs):
+                 camera_id=0, min_target_size=0.1, pause_before_reset=0, pause_after_reset=0, **kwargs):
         """Constructor of the environment.
         Args:
             episode_length_time: A float duration of an episode defined in seconds
@@ -45,8 +45,10 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         self._episode_step_ = Value('i', 0)
         self._episode_length_time = episode_length_time
         self._episode_length_step = int(episode_length_time / dt)
+        self.pause_before_reset = pause_before_reset
+        self.pause_after_reset = pause_after_reset
         self._internal_timing = 0.015
-        self._hsv_mask = ((30, 60, 0), (80, 255, 255))
+        self._hsv_mask = ((30, 68, 0), (85, 255, 255))
         self._min_target_size = min_target_size
         self._min_battery = 1200
         self._max_battery = 1850
@@ -255,6 +257,11 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         This method does the handling of charging the Create2, repositioning, and set to the correct mode.
         """
         logging.info("Resetting...")
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
+        # N.B: pause_before_reset should be greater than zero only for demo purposes
+        time.sleep(self.pause_before_reset)
+
         self._episode_step_.value = -1
         np.copyto(self._prev_action_, np.array([0, 0]))
         for d in self._observation_def:
@@ -268,6 +275,8 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
         if self._image_shape != (0, 0, 0):
             while not self._sensor_comms['Camera'].sensor_buffer.updated():
                 time.sleep(0.01)
+
+
 
         sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
         print('current charge:', sensor_window[-1][0]['battery charge'])
@@ -296,28 +305,36 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
             self._write_opcode('drive_direct', 0, 0)
             time.sleep(0.1)
 
-        # drive backward and rotate randomly
+        # rotate and drive backward 
         logging.info("Moving Create2 into position.")
         target_values = [-300, -300]
-        move_time = np.random.uniform(low=1, high=1.5)
-        rotate_time = np.random.uniform(low=0.5, high=1)
+        move_time_1 = np.random.uniform(low=1, high=1.5)
+        move_time_2 = np.random.uniform(low=0.3, high=0.6)
+        rotate_time_1 = np.random.uniform(low=0.25, high=0.75)
+        rotate_time_2 = np.random.uniform(low=0.5, high=1)
         direction = np.random.choice((1, -1))
         
+        # rotate
+        self._write_opcode('drive_direct', *(300*direction, -300*direction))
+        time.sleep(rotate_time_1)
+        self._write_opcode('drive', 0, 0)
+        time.sleep(0.1)
+
         # back
         self._write_opcode('drive_direct', *target_values)
-        time.sleep(move_time)
+        time.sleep(move_time_1)
         self._write_opcode('drive', 0, 0)
         time.sleep(0.1)
 
         # rotate
         self._write_opcode('drive_direct', *(300*direction, -300*direction))
-        time.sleep(rotate_time)
+        time.sleep(rotate_time_2)
         self._write_opcode('drive', 0, 0)
         time.sleep(0.1)
         
         # back
-        self._write_opcode('drive_direct', *target_values)
-        time.sleep(move_time)
+        self._write_opcode('drive_direct', *[300, 300])
+        time.sleep(move_time_2)
         self._write_opcode('drive', 0, 0)
         time.sleep(0.1)
         '''
@@ -344,7 +361,10 @@ class Create2VisualReacherEnv(RTRLBaseEnv, gym.Env):
 
             sensor_window, _, _ = self._sensor_comms['Create2'].sensor_buffer.read()
 
-        # don't want to state during reset pollute the first sensation
+        # N.B: pause_after_reset should be greater than zero only for demo purposes
+        time.sleep(self.pause_after_reset)
+
+        # don't want the state during reset pollute the first sensation
         time.sleep(2 * self._internal_timing)
 
         print("Reset completed.")

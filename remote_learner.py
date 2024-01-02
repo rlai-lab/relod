@@ -26,14 +26,11 @@ def main():
     agent = RemoteWrapper(port=server_args.port)
     args = agent.recv_data()
 
-    args.model_dir = 'remote/'+args.model_dir
-    args.return_dir = 'remote/'+args.return_dir
-    os.makedirs(args.model_dir, exist_ok=False)
-    os.makedirs(args.return_dir, exist_ok=False)
+    os.makedirs(args.model_dir, exist_ok=True)
+    os.makedirs(args.return_dir, exist_ok=True)
     L = Logger(args.return_dir, use_tb=args.save_tb)
 
     if args.save_image:
-        args.image_dir = 'remote/'+args.image_dir
         os.makedirs(args.image_dir, exist_ok=False)
 
     agent.init_performer(SACRADPerformer, args)
