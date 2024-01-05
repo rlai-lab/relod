@@ -1,13 +1,15 @@
 import torch
 import argparse
 import time
+import os
+import relod.utils as utils
+
 from relod.algo.local_wrapper import LocalWrapper
 from relod.algo.sac_rad_agent import SACRADPerformer, SACRADLearner
-import relod.utils as utils
-from relod.envs.mujoco_visual_reacher.env import ReacherWrapper
+from relod.envs.dm_reacher import ReacherWrapper
 from relod.algo.comm import MODE
 from relod.logger import Logger
-import os
+
 
 config = {
     'conv': [
@@ -39,7 +41,7 @@ def parse_args():
     parser.add_argument('--episode_length_time', default=50, type=int)
     parser.add_argument('--dt', default=1, type=int)
     # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
+    parser.add_argument('--replay_buffer_capacity', default=10000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
@@ -113,7 +115,7 @@ def main():
     args.model_dir = model_dir
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
-    env = ReacherWrapper(args.tol, image_shape, args.image_period, use_ground_truth=True)
+    env = ReacherWrapper(mode="hard", use_image=True, seed=args.seed, penalty=-1)
     utils.set_seed_everywhere(args.seed, env)
 
     args.image_shape = env.image_space.shape
@@ -132,18 +134,18 @@ def main():
     agent.apply_remote_policy(block=True)
     
     episode, episode_reward, episode_step, done = 0, 0, 0, True
-    image, propri = env.reset()
-    agent.send_init_ob((image, propri))
+    obs = env.reset()
+    agent.send_init_ob((obs.images, obs.proprioception))
     start_time = time.time()
     for step in range(args.env_steps + args.init_steps):
-        action = agent.sample_action((image, propri))
+        action = agent.sample_action((obs.images, obs.proprioception))
 
-        next_image, next_propri, reward, done, _ = env.step(action)
+        next_obs, reward, done, _ = env.step(action)
 
         episode_reward += reward
         episode_step += 1
 
-        agent.push_sample((image, propri), action, reward, (next_image, next_propri), done)
+        agent.push_sample((obs.images, obs.proprioception), action, reward, (next_obs.images, next_obs.proprioception), done)
         
         if done or (episode_step == episode_length_step): # set time out here
             if mode == MODE.LOCAL_ONLY:
@@ -152,8 +154,8 @@ def main():
                 L.dump(step)
                 L.log('train/episode', episode+1, step)
 
-            next_image, next_propri = env.reset()
-            agent.send_init_ob((next_image, next_propri))
+            next_obs = env.reset()
+            agent.send_init_ob((next_obs.images, next_obs.proprioception))
             episode_reward = 0
             episode_step = 0
             episode += 1
@@ -164,8 +166,7 @@ def main():
             for k, v in stat.items():
                 L.log(k, v, step)
         
-        image = next_image
-        propri = next_propri
+        obs = next_obs
 
         if args.save_model and (step+1) % args.save_model_freq == 0:
             agent.save_policy_to_file(args.model_dir, step)
@@ -182,4 +183,5 @@ def main():
     print('Train finished')
 
 if __name__ == '__main__':
+    torch.multiprocessing.set_start_method('spawn')
     main()
