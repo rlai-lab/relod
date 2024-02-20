@@ -11,7 +11,7 @@ from relod.algo.local_wrapper import LocalWrapper
 from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
 
 from senseact.utils import NormalizedEnv
-from relod.envs.create2_visual_reacher.env import Create2VisualReacherEnv
+from relod.envs.create2_visual_reacher import Create2VisualReacherEnv
 from tqdm import tqdm
 import numpy as np
 # import cv2
@@ -57,6 +57,7 @@ def parse_args():
     parser.add_argument('--env_steps', default=100000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--sync_mode', default=False, action='store_true')
+    parser.add_argument('--async_buffer', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=1.0, type=float)
     parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
