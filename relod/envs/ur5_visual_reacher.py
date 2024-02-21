@@ -57,6 +57,7 @@ class VisualReacherMinTimeEnv:
                  size_tol=0.015,
                  center_tol=0.1,
                  reward_tol=1.0,
+                 reset_type="zero"
                 ):
         self._image_width = image_width
         self._image_height = image_height
@@ -81,8 +82,7 @@ class VisualReacherMinTimeEnv:
             target_type="reaching",
             image_history=image_history,
             joint_history=joint_history,
-            reset_type="zero",
-            reward_type="dense",
+            reset_type=reset_type,
             derivative_type="none",
             deriv_action_max=5,
             first_deriv_max=2,
@@ -204,7 +204,6 @@ class VisualReacherMinTimeEnv:
         return self._env.action_space
 
     def reset(self):
-
         obs_dict = self._env.reset()
         image = obs_dict['image']
         prop = obs_dict['joint']

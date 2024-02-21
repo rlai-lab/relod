@@ -56,6 +56,7 @@ def parse_args():
     parser.add_argument('--reward_tol', default=2.0, type=float)
     parser.add_argument('--reset_penalty_steps', default=70, type=int)
     parser.add_argument('--reward', default=-1, type=float)
+    parser.add_argument('--reset_type', default='zero', type=str, help=["zero", "random"])
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     parser.add_argument('--rad_offset', default=0.01, type=float)
@@ -154,6 +155,7 @@ def main():
         size_tol = args.size_tol,
         center_tol = args.center_tol,
         reward_tol = args.reward_tol,
+        reset_type=args.reset_type,
     )
 
     utils.set_seed_everywhere(args.seed, None)
