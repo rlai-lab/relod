@@ -47,7 +47,7 @@ def parse_args():
     parser.add_argument('--image_history', default=3, type=int)
     parser.add_argument('--joint_history', default=1, type=int)
     parser.add_argument('--ignore_joint', default=False, action='store_true')
-    parser.add_argument('--episode_length_time', default=4.0, type=float)
+    parser.add_argument('--episode_length_time', default=6.0, type=float)
     parser.add_argument('--dt', default=0.04, type=float)
     parser.add_argument('--size_tol', default=0.015, type=float)
     parser.add_argument('--center_tol', default=0.1, type=float)
@@ -159,7 +159,7 @@ def main():
     utils.set_seed_everywhere(args.seed, None)
     mt = MonitorTarget()
     mt.reset_plot()
-    input('Please hit Enter to proceed...')
+    # input('Please hit Enter to proceed...')
     image, prop = env.reset()
     image_to_show = np.transpose(image, [1, 2, 0])
     image_to_show = image_to_show[:,:,-3:]
