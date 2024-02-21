@@ -151,7 +151,7 @@ setups = {
                           0.0823    # d6
                       )
               },
-    'Visual-UR5-min-time':
+    'Visual-UR5-constrained':
               {
                   'host': '192.168.2.152',  # put UR5 Controller address here
                   #'end_effector_low': np.array([-0.3, -0.6, 0.5]),

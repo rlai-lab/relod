@@ -10,8 +10,7 @@ from relod.logger import Logger
 from relod.algo.comm import MODE
 from relod.algo.local_wrapper import LocalWrapper
 from relod.algo.sac_rad_agent import SACRADLearner, SACRADPerformer
-from relod.envs.visual_ur5_reacher.configs.ur5_config import config
-from relod.envs.visual_ur5_min_time_reacher.env import VisualReacherMinTimeEnv, MonitorTarget
+from relod.envs.ur5_visual_reacher_min_time import VisualReacherMinTimeEnv, MonitorTarget
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -38,7 +37,7 @@ config = {
 def parse_args():
     parser = argparse.ArgumentParser(description='Local remote visual UR5 Reacher')
     # environment
-    parser.add_argument('--setup', default='Visual-UR5-min-time')
+    parser.add_argument('--setup', default='Visual-UR5-constrained')
     parser.add_argument('--env', default='ur5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
     parser.add_argument('--camera_id', default=0, type=int)
@@ -65,6 +64,7 @@ def parse_args():
     parser.add_argument('--env_steps', default=100000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--sync_mode', default=False, action='store_true')
+    parser.add_argument('--async_buffer', default=False, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.6, type=float)
     parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
@@ -159,12 +159,12 @@ def main():
     utils.set_seed_everywhere(args.seed, None)
     mt = MonitorTarget()
     mt.reset_plot()
-    input('go?')
+    input('Please hit Enter to proceed...')
     image, prop = env.reset()
     image_to_show = np.transpose(image, [1, 2, 0])
     image_to_show = image_to_show[:,:,-3:]
     cv2.imshow('raw', image_to_show)
-    cv2.waitKey(0)
+    cv2.waitKey(1)
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
     args.action_shape = env.action_space.shape
@@ -342,7 +342,7 @@ def run_init_policy_test(agent, args):
             plt.close()
             mt = MonitorTarget()
             mt.reset_plot()
-            input('go?')
+            input('Please hit Enter to proceed...')
             image, prop = env.reset()
             agent.performer.sample_action((image, prop))
             agent.performer.sample_action((image, prop))
