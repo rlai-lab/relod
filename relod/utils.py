@@ -99,7 +99,10 @@ def set_seed_everywhere(seed, env=None):
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
     if env is not None:
-        env.seed(seed)
+        try:
+            env.seed(seed)
+        except AttributeError:
+            print("Env does not have seed attribute.")
         env.action_space.seed(seed)
 
 def random_augment(images, rad_height, rad_width):

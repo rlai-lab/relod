@@ -4,6 +4,7 @@ import time
 import pickle
 import os
 import numpy as np
+import sys
 
 
 class RadReplayBuffer(object):
@@ -110,7 +111,9 @@ class AsyncRadReplayBuffer(RadReplayBuffer):
                     self._pause_update = False
                     print('resume update')
                 elif sample == 'save':
-                    self.save()                    
+                    self.save()     
+                elif sample == 'exit':
+                    sys.exit()             
                 else:
                     raise NotImplementedError()
             else:

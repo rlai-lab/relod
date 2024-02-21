@@ -1,14 +1,12 @@
-from relod.envs.visual_ur5_reacher.reacher_env_min_time import ReacherEnv
-import numpy as np
-from senseact.utils import NormalizedEnv
-import cv2, math
-from statistics import mean
-import time
+import cv2, math, time
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
-from tqdm import tqdm
-import torch
+
+from senseact.utils import NormalizedEnv
+from relod.envs.base_reacher_env import ReacherEnv
+
 
 class MonitorTarget:
     def __init__(self):
@@ -42,45 +40,10 @@ class MonitorTarget:
         
         time.sleep(0.032)
 
-def get_mask(image):
-    image = np.transpose(image, [1,2,0])
-    image = image[:,:,-3:]
-
-    lower = [0, 0, 120]
-    upper = [50, 50, 255]
-    lower = np.array(lower, dtype="uint8")
-    upper = np.array(upper, dtype="uint8")
-
-    mask = cv2.inRange(image, lower, upper)
-    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    cv2.fillPoly(mask, pts=contours, color=(255, 255, 255))
-    
-    return mask
-
-def get_center(image):
-    mask = get_mask(image)
-
-    m = cv2.moments(mask)
-    if math.isclose(m["m00"], 0.0, rel_tol=1e-6, abs_tol=0.0):
-        x = 0
-        y = 0
-    else:
-        x = int(m["m10"] / m["m00"])
-        y = int(m["m01"] / m["m00"])
-
-    cv2.circle(mask, (x, y), 1, (0,0,0), -1)
-    cv2.imshow('mask', mask)
-    cv2.waitKey(1)
-
-    width = len(mask[0])
-    height = len(mask)
-    x = -1.0 + x/width*2
-    y = -1.0 + y/height*2
-    return x, y
 
 class VisualReacherMinTimeEnv:
     def __init__(self,
-                 setup='Visual-UR5-min-time',
+                 setup='Visual-UR5-partial',
                  ip='129.128.159.210',
                  seed=9,
                  camera_id=0,
@@ -142,15 +105,51 @@ class VisualReacherMinTimeEnv:
 
         self._reset = False
 
-    def _compute_target_size(self, image):
-        mask = get_mask(image)
 
+    def get_mask(self, image):
+        image = np.transpose(image, [1,2,0])
+        image = image[:,:,-3:]
+
+        lower = [0, 0, 120]
+        upper = [50, 50, 255]
+        lower = np.array(lower, dtype="uint8")
+        upper = np.array(upper, dtype="uint8")
+
+        mask = cv2.inRange(image, lower, upper)
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        cv2.fillPoly(mask, pts=contours, color=(255, 255, 255))
+        
+        return mask
+
+    def get_center(self, image):
+        mask = self.get_mask(image)
+
+        m = cv2.moments(mask)
+        if math.isclose(m["m00"], 0.0, rel_tol=1e-6, abs_tol=0.0):
+            x = 0
+            y = 0
+        else:
+            x = int(m["m10"] / m["m00"])
+            y = int(m["m01"] / m["m00"])
+
+        cv2.circle(mask, (x, y), 1, (0,0,0), -1)
+        cv2.imshow('mask', mask)
+        cv2.waitKey(1)
+
+        width = len(mask[0])
+        height = len(mask)
+        x = -1.0 + x/width*2
+        y = -1.0 + y/height*2
+        return x, y
+
+    def _compute_target_size(self, image):
+        mask = self.get_mask(image)
         target_size = np.sum(mask/255.) / mask.size
 
         return target_size
 
     def _compute_target_offset(self, image, target_location):
-        (x, y) = get_center(image)
+        (x, y) = self.get_center(image)
 
         return abs(x-target_location[0]), abs(y-target_location[1])
 
@@ -249,68 +248,32 @@ class VisualReacherMinTimeEnv:
     def close(self):
         self._env.close()
 
-def ranndom_policy_hits_vs_timeout():
-    total_steps = 20000
-    mt = MonitorTarget()
-    mt.reset_plot()
-    input('go?')
-    steps_record = open(f"visual_ur5_steps_record.txt", 'w')
-    hits_record = open(f"visual_ur5_random_stat.txt", 'w')
-    for epi_len in [30]:
-        timeout = int(epi_len//0.04)
-        for seed in tqdm(range(5)):
-            torch.manual_seed(seed)
-            np.random.seed(seed)
-            env = VisualReacherMinTimeEnv(seed=seed, episode_length=epi_len)
-            steps_record.write(f"epi_length={epi_len}s, seed={seed}: ")
-            # Experiment
-            hits = 0
-            steps = 0
-            epi_steps = 0
 
-            image, _ = env.reset()
-            # image = np.transpose(image, [1, 2, 0])
-            # image = image[:,:,-3:]
-            # cv2.imshow("", image)
-            # cv2.waitKey(0)
-            
-            while steps < total_steps:
-                action = np.random.normal(size=env.action_space.shape)
+class VisualReacherEnv(VisualReacherMinTimeEnv):
+    def __init__(self, setup='Visual-UR5-min-time', ip='129.128.159.210', seed=9, camera_id=0, 
+                 image_width=160, image_height=90, target_type='size', image_history=3, 
+                 joint_history=1, episode_length=30, dt=0.04, size_tol=0.015, 
+                 center_tol=0.1, reward_tol=1, sparse_reward=False):
+        super().__init__(setup, ip, seed, camera_id, image_width, image_height, target_type, 
+                         image_history, joint_history, episode_length, dt, size_tol, 
+                         center_tol, reward_tol)
+        self.use_sparse_reward = sparse_reward
+        print("Using sparse reward:", sparse_reward)
+    
+    def step(self, action):
+        assert self._reset
+        obs_dict, _, done, _ = self._env.step(action)
+        image = obs_dict['image']
+        prop = obs_dict['joint']
+        info = {}
 
-                # Receive reward and next state            
-                _, _, _, done, _ = env.step(action)
-                
-                # print("Step: {}, Next Obs: {}, reward: {}, done: {}".format(steps, next_obs, reward, done))
+        if self.use_sparse_reward:
+            reward = self._compute_target_size(image) >= self._size_tol
+        else:
+            reward = self._compute_reward(image, prop)
 
-                # Log
-                steps += 1
-                epi_steps += 1
+        if done:
+            self._reset = False
+            self._env.stop_arm()
 
-                # Termination
-                if done or epi_steps == timeout:
-                    env.reset()
-                    
-                    epi_steps = 0
-
-                    if done:
-                        hits += 1
-                        mt.reset_plot()
-                    else:
-                        steps += 75
-                        
-                    steps_record.write(str(steps)+', ')
-
-            steps_record.write('\n')
-            hits_record.write(f"epi_length={epi_len}s, seed={seed}: {hits}\n")
-            env.reset()
-            env.close()
-
-    steps_record.close()
-    hits_record.close()
-
-if __name__ == '__main__':
-    mt = MonitorTarget()
-    while True:        
-        mt.reset_plot()
-        time.sleep(1)
-    ranndom_policy_hits_vs_timeout()
+        return image, prop, reward, done, info
