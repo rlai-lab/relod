@@ -35,7 +35,7 @@ config = {
 def parse_args():
     parser = argparse.ArgumentParser(description='Local remote visual UR5 Reacher')
     # environment
-    parser.add_argument('--setup', default='Visual-UR5-constrained')
+    parser.add_argument('--setup', default='Visual-UR5')
     parser.add_argument('--env', default='ur5', type=str)
     parser.add_argument('--ur5_ip', default='129.128.159.210', type=str)
     parser.add_argument('--camera_id', default=0, type=int)
@@ -63,7 +63,7 @@ def parse_args():
     parser.add_argument('--env_steps', default=100000, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--sync_mode', default=False, action='store_true')
-    parser.add_argument('--async_buffer', default=False, action='store_true')
+    parser.add_argument('--async_buffer', default=True, action='store_true')
     parser.add_argument('--max_updates_per_step', default=0.6, type=float)
     parser.add_argument('--update_every', default=50, type=int)
     parser.add_argument('--update_epochs', default=50, type=int)
@@ -163,8 +163,8 @@ def main():
     image, prop = env.reset()
     image_to_show = np.transpose(image, [1, 2, 0])
     image_to_show = image_to_show[:,:,-3:]
-    cv2.imshow('raw', image_to_show)
-    cv2.waitKey(1)
+    # cv2.imshow('raw', image_to_show)
+    # cv2.waitKey(1)
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
     args.action_shape = env.action_space.shape
@@ -194,7 +194,8 @@ def main():
     ep_lens = []
     start_time = time.time()
     print(f'Experiment starts at: {start_time}')
-    for t in range(args.env_steps):
+    t = 0
+    while t <= args.env_steps:
         # start a new episode
         if mode == MODE.EVALUATION:
             image, prop = env.reset()
@@ -217,9 +218,9 @@ def main():
                 image_to_show = image_to_show[:,:,-3:]
                 if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
                     cv2.imwrite(episode_image_dir+f'ep_step={ep_steps}.png', image_to_show)
-                if args.display_image:
-                    cv2.imshow('raw', image_to_show)
-                    cv2.waitKey(1)
+                # if args.display_image:
+                #     cv2.imshow('raw', image_to_show)
+                #     cv2.waitKey(1)
 
             # select an action
             action = agent.sample_action((image, prop))
@@ -240,7 +241,8 @@ def main():
 
             # Log
             ret += reward
-            ep_steps += 1            
+            ep_steps += 1
+            t += 1            
 
             if args.save_model and t % args.save_model_freq == 0:
                 agent.save_policy_to_file(args.model_dir, t)
