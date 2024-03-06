@@ -161,12 +161,12 @@ def main():
     utils.set_seed_everywhere(args.seed, None)
     mt = MonitorTarget()
     mt.reset_plot()
-    input('Please hit Enter to proceed...')
+    # input('Please hit Enter to proceed...')
     image, prop = env.reset()
     image_to_show = np.transpose(image, [1, 2, 0])
     image_to_show = image_to_show[:,:,-3:]
-    cv2.imshow('raw', image_to_show)
-    cv2.waitKey(1)
+    # cv2.imshow('raw', image_to_show)
+    # cv2.waitKey(1)
     args.image_shape = env.image_space.shape
     args.proprioception_shape = env.proprioception_space.shape
     args.action_shape = env.action_space.shape
@@ -201,7 +201,6 @@ def main():
     # Experiment block starts
     experiment_done = False
     total_steps = 0
-    sub_epi = 1
     returns = []
     epi_lens = []
     start_time = time.time()
@@ -219,6 +218,7 @@ def main():
         epi_steps = 0
         sub_steps = 0
         epi_done = 0
+        sub_epi = 0
         if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
             episode_image_dir = args.image_dir+f'/episode={len(returns)+1}/'
             os.makedirs(episode_image_dir, exist_ok=False)
@@ -230,9 +230,9 @@ def main():
                 image_to_show = image_to_show[:,:,-3:]
                 if (mode == MODE.LOCAL_ONLY or mode == MODE.EVALUATION) and args.save_image:
                     cv2.imwrite(episode_image_dir+f'sub_epi={sub_epi}-epi_step={epi_steps}.png', image_to_show)
-                if args.display_image:
-                    cv2.imshow('raw', image_to_show)
-                    cv2.waitKey(1)
+                # if args.display_image:
+                #     cv2.imshow('raw', image_to_show)
+                #     cv2.waitKey(1)
 
             # select an action
             action = agent.sample_action((image, prop))
@@ -266,9 +266,13 @@ def main():
                 total_steps += args.reset_penalty_steps
                 print(f'Sub episode {sub_epi} done.')
 
+                sub_epi += 1
+                if sub_epi % 10 == 0:
+                    mt.reset_plot()
+                
                 image, prop = env.reset()
                 agent.send_init_ob((image, prop))
-                sub_epi += 1
+                
 
             experiment_done = total_steps >= args.env_steps
 
@@ -291,8 +295,6 @@ def main():
                 L.dump(total_steps)
                 if args.plot_learning_curve:
                     utils.show_learning_curve(args.return_dir+'/learning curve.png', returns, epi_lens, xtick=args.xtick)
-            
-            sub_epi += 1
 
     duration = time.time() - start_time
     agent.save_policy_to_file(args.model_dir, total_steps)
@@ -301,6 +303,7 @@ def main():
     env.reset()
     agent.close()
     env.close()
+    mt.fig.close()
 
     # always show a learning curve at the end
     if mode == MODE.LOCAL_ONLY:
@@ -344,7 +347,7 @@ def run_init_policy_test(agent, args):
             plt.close()
             mt = MonitorTarget()
             mt.reset_plot()
-            input('Please hit Enter to proceed...')
+            # input('Please hit Enter to proceed...')
             image, prop = env.reset()
             agent.performer.sample_action((image, prop))
             agent.performer.sample_action((image, prop))
