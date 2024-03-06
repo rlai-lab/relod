@@ -111,10 +111,14 @@ setups = {
     'Visual-UR5':
               {
                   'host': '192.168.2.152',  # put UR5 Controller address here
-                  #'end_effector_low': np.array([-0.3, -0.6, 0.5]),
-                  #'end_effector_high': np.array([0.2, 0.4, 1.0]),
-                  'end_effector_low': np.array([-0.4, 0.1, 0.1]),
-                  'end_effector_high': np.array([0.4, 0.8, 0.8]),
+                  ##### Yufeng's limits
+                  #'end_effector_low': np.array([-0.4, 0.1, 0.1]),
+                  #'end_effector_high': np.array([0.4, 0.8, 0.8]),
+                  #####
+                  ##### Homayoon's limits
+                  'end_effector_low': np.array([-0.4, 0.17, 0.37]),
+                  'end_effector_high': np.array([0.15, 0.7, 0.63]),
+                  #####
                   'angles_low':np.pi/180 * np.array(
                       [ 55,
                        -120,#-180
