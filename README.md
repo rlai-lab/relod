@@ -17,6 +17,22 @@ N.B: All vision-based experiments use Random Augmented Data (RAD) to improve sam
 | ![Create-Reacher](docs/Create-Reacher.gif) <br> Create-Reacher | ![Franka-VisualReacher](docs/Vector-ChargerDetector.gif) <br /> Vector-ChargerDetector |
 | --- | --- |
 
+## Choice of hyper-parameters for UR5 experiments
+| **Hyper-parameter** | **Value** |
+| Replay buffer | 100K |
+| Actor step size | 3e-4 | 
+| Critic step size | 3e-4 |
+| Entropy coefficient step size | 3e-4 | 
+| Batch size | 256 | 
+| Discount factor | 0.99 | 
+| Update every $k$ steps | 2 | 
+| Num. update epochs every $k^{th}$ step | 1 | 
+| Actor MLP hidden sizes | [512 512] | 
+| Critic MLP hidden sizes | [512 512] | 
+| Warm-up time steps | 1000 | 
+| Adam optimizer betas | [0.9, 0.999] | 
+| Initial temperature | 0.1 | 
+| Neural network activation | ReLU | 
 
 ## Installation instructions
 1. Download Mujoco and license files to ~/.mujoco
