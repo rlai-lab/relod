@@ -19,6 +19,7 @@ N.B: All vision-based experiments use Random Augmented Data (RAD) to improve sam
 
 ## Choice of hyper-parameters for UR5 experiments
 | **Hyper-parameter** | **Value** |
+| ----------- | ----------- |
 | Replay buffer | 100K |
 | Actor step size | 3e-4 | 
 | Critic step size | 3e-4 |
