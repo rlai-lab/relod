@@ -63,6 +63,9 @@ pip install .
 ```python
  python task_ur5_visual_reacher.py  --work_dir "./results" --mode 'l' --seed 0 --env_steps 200100 
 ```
+## Franka-VisualReacher
+The code for the Franka task can be found in [this branch](https://github.com/rlai-lab/relod/tree/franka).
+
 
 ## Cite
 Wang, Y.⋆, Vasan, G.⋆, & Mahmood, A. R. (2023). Real-time reinforcement learning for vision-based robotics utilizing local and remote computers. In *Proceedings of the 2023 International Conference on Robotics and Automation (ICRA).*
